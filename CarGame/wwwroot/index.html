@@ -1,0 +1,2059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Car Game</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0d1117; color: #fff; font-family: "Segoe UI", Arial, sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; overflow: hidden; }
+  #score { font-size: 26px; font-weight: 800; letter-spacing: 2px; display: flex; gap: 18px; align-items: baseline; }
+  #score .blue { color: #4d8dff; }
+  #score .red { color: #ff5a5a; }
+  #score .sep { color: #8b949e; }
+  canvas { width: min(96vw, calc((100vh - 150px) * 16 / 9)); aspect-ratio: 16 / 9; border-radius: 6px; box-shadow: 0 0 30px #0008; }
+  #modeBar { font-size: 15px; color: #c9d1d9; }
+  #modeBar select { background: #21262d; color: #fff; border: 1px solid #4d8dff; border-radius: 5px; padding: 4px 10px; font: inherit; }
+  #menu { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+          background: radial-gradient(ellipse at center, rgba(30,45,75,0.93), rgba(8,11,17,0.97)); text-align: center; padding: 16px; box-sizing: border-box; overflow: auto; }
+  #menu.hidden { display: none; }
+  #logo { display: flex; flex-direction: column; align-items: center; gap: 0; transform: rotate(-2deg); }
+  #logo .l1 { font: 900 clamp(46px, 9vw, 104px)/1 "Segoe UI Black", "Segoe UI", Arial, sans-serif; letter-spacing: 2px; color: #ffd23f; -webkit-text-stroke: 4px #1b2433; paint-order: stroke fill;
+              text-shadow: 0 6px 0 #c2410c, 0 12px 24px #000a; }
+  #logo .l2 { font: 900 clamp(28px, 5.4vw, 64px)/1 "Segoe UI Black", "Segoe UI", Arial, sans-serif; letter-spacing: 6px; color: #fff; -webkit-text-stroke: 3px #1b2433; paint-order: stroke fill; text-shadow: 0 5px 0 #2563eb, 0 10px 20px #000a; }
+  #logo svg { width: clamp(220px, 34vw, 400px); height: auto; margin-top: 6px; }
+  #menuMsg { font-size: clamp(22px, 3.4vw, 40px); font-weight: 800; color: #fff; min-height: 1.2em; }
+  #menuMsg small { display: block; font-size: 0.5em; font-weight: 600; color: #8b949e; }
+  #menuBtns { display: grid; grid-template-columns: repeat(2, minmax(200px, 300px)); gap: 16px; }
+  #menuBtns button { font: 800 clamp(18px, 2.4vw, 28px) "Segoe UI", Arial, sans-serif; color: #fff; border: 3px solid #fff3; border-radius: 16px; padding: 22px 18px; cursor: pointer;
+                     box-shadow: 0 6px 0 #0007, 0 10px 24px #0007; transition: transform 0.08s, filter 0.08s; }
+  #menuBtns button small { display: block; margin-top: 6px; font-size: 0.55em; font-weight: 600; opacity: 0.85; }
+  #menuBtns button:hover { transform: translateY(-3px) scale(1.03); filter: brightness(1.15); }
+  #menuBtns button:active { transform: translateY(2px); }
+  #menuBtns .two { background: linear-gradient(135deg, #2563eb, #dc2626); }
+  #menuBtns .easy { background: #16a34a; }
+  #menuBtns .medium { background: #d97706; }
+  #menuBtns .hard { background: #b91c1c; }
+  @media (max-height: 720px) { #menu { gap: 10px; } #logo svg { width: 190px; } #logo .l1 { font-size: 48px; } #logo .l2 { font-size: 28px; } #menuBtns { gap: 10px; } #menuBtns button { padding: 12px 14px; font-size: 18px; } #menuMsg { font-size: 22px; } }
+  #menuHint { color: #8b949e; font-size: 14px; }
+  #help { font-size: 12px; color: #8b949e; }
+  #help b { color: #fff; }
+  #tune { display: flex; flex-wrap: wrap; gap: 3px 16px; justify-content: center; align-items: center; font-size: 12px; color: #c9d1d9;
+          background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 4px 12px; max-width: 96vw; box-sizing: border-box; }
+  #tune .title { font-weight: 700; color: #fff; }
+  #tune label { display: flex; align-items: center; gap: 8px; }
+  #tune input[type=range] { width: 120px; accent-color: #4d8dff; }
+  #tune output { display: inline-block; min-width: 3.4em; font-variant-numeric: tabular-nums; color: #fff; }
+  #tune select, #tune button { background: #21262d; color: #fff; border: 1px solid #30363d; border-radius: 5px; padding: 3px 8px; font: inherit; }
+</style>
+</head>
+<body>
+  <div id="score"><span class="blue">Blue <span id="sBlue">0</span></span><span class="sep">-</span><span class="red"><span id="sRed">0</span> <span id="redName">Red</span></span></div>
+  <div id="menu">
+    <div id="logo">
+      <span class="l1">ISAAC'S</span><span class="l2">CAR GAME</span>
+      <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <g transform="translate(20 10)">
+          <path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#3b82f6" stroke="#1b2433" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M104 18 L152 18 L176 40 L84 40 Z" fill="#bfe3ff" stroke="#1b2433" stroke-width="4" stroke-linejoin="round"/>
+          <circle cx="132" cy="22" r="11" fill="#ffd9b0" stroke="#1b2433" stroke-width="3"/>
+          <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="60" cy="82" r="12" fill="#cbd5e1"/>
+          <circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="204" cy="82" r="12" fill="#cbd5e1"/>
+        </g>
+        <g transform="translate(300 30) scale(0.55)"><path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#ef4444" stroke="#1b2433" stroke-width="7" stroke-linejoin="round" transform="translate(250 0) scale(-1 1)"/>
+          <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="7"/><circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="7"/></g>
+      </svg>
+    </div>
+    <div id="menuMsg"></div>
+    <div id="menuBtns">
+      <button type="button" class="two" data-mode="two">Two Players<small>one keyboard</small></button>
+      <button type="button" class="easy" data-mode="ai-easy">Play the Computer<small>easy</small></button>
+      <button type="button" class="medium" data-mode="ai-medium">Play the Computer<small>medium</small></button>
+      <button type="button" class="hard" data-mode="ai-hard">Play the Computer<small>hard</small></button>
+    </div>
+    <div id="menuHint">First to 5 points wins</div>
+  </div>
+  <canvas id="c" width="1280" height="720"></canvas>
+  <div id="help"><span style="color:#4d8dff">Blue</span>: <b>Z</b> anti-clockwise, <b>X</b> clockwise &nbsp;|&nbsp; <span id="helpRed"><span style="color:#ff5a5a">Red</span>: <b>,</b> anti-clockwise, <b>.</b> clockwise</span></div>
+  <div id="tune">
+    <span class="title">Tune-up</span>
+    <label title="Top wheel spin speed">Top speed <input type="range" id="tMaxSpin" min="0.2" max="1.6" step="0.01"><output id="oMaxSpin"></output></label>
+    <label title="Axle springiness. 1 = rigid axles; lower = softer, the car squashes on landing">Suspension <input type="range" id="tSusp" min="0" max="1" step="0.01"><output id="oSusp"></output></label>
+    <label>Volume <input type="range" id="tVolume" min="0" max="1" step="0.01"><output id="oVolume"></output></label>
+    <button id="tMute" type="button" title="Mute or unmute (M)">Sound on</button>
+    <button id="tReset" type="button">Reset</button>
+    <label>Level <span id="levelName">-</span></label>
+    <label>Next <select id="nextLevel"><option value="">Random</option></select></label>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script>
+const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+const W = 1280, H = 720;
+const WATER_Y = H - 50;
+const HEAD_R = 10, WHEEL_R = 22, WHEEL_Y = 20;   // wheel radius, and how far the axles sit below the car's design centre
+const STEP = 1000 / 120;          // fixed physics step (ms)
+const TUNE = { torque: 0.66, maxSpin: 0.8, accel: 2.4, brake: 0, air: -2, suspension: 0.37, airTorque: 0.525, airMaxSpin: 0.075, airDelay: 80, gravity: 0.00095, tireBounce: 0.39, bounceMinSpeed: 6 };   // wheel drive torque (with equal and opposite reaction on the chassis) and top wheel spin
+const SUDDEN = { afterMs: 35000, waterRise: 14, waterMin: 60, wallSpeed: 16, wallMax: 440 };   // sudden death: after this long, the water rises or the walls close in
+const END = { afterMs: 1500, fadeMs: 1500 };                                                  // end of round: a live aftermath, then the colour fade
+// The Suspension slider runs 0 (very soft) to 1 (rigid). Matter solves each axle several times per step, so only a very
+// low constraint stiffness gives visible give: slider 0 -> 0.004, 0.37 -> about 0.03, 1 -> 1.
+const suspStiffness = s => 0.004 * Math.pow(250, s);
+// Special rounds, one every 3 to 5 rounds: the wheel pickups from before, plus moon gravity, a gale and a slippery storm.
+const ROUND_MODS = [
+  { id: 'monster', name: 'MONSTER TRUCK WHEELS!', wheelScale: 1.45 },
+  { id: 'tiny', name: 'TINY WHEELS!', wheelScale: 0.65 },
+  { id: 'moon', name: 'MOON GRAVITY!', gravityMul: 0.4 },
+  { id: 'wind', name: 'GALE FORCE WIND' },
+  { id: 'storm', name: 'SLIPPERY STORM!' },
+  { id: 'bighead', name: 'GIANT HEADS!', headScale: 3 },
+  { id: 'caravan', name: 'TOWING CARAVANS!' },
+  { id: 'teensy', name: 'TEENSY CARS!', carScale: 0.5 },
+  { id: 'bomb', name: 'BOMB TRAILERS!' },
+  { id: 'square', name: 'SQUARE WHEELS!' },
+  { id: 'giant', name: 'GIANT CARS!', carScale: 2 },
+  { id: 'three', name: 'BENDY THREE-WHEELERS!' }
+];
+const WIND_ACCEL = 0.0005;        // gale strength (px per ms squared; gravity is about 0.00135)
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const CARS = {
+  blue: { name: 'Blue', color: '#2f7bff', dark: '#1b4fb5', acw: 'KeyZ',   cw: 'KeyX',   group: -1, dir: 1 },
+  red:  { name: 'Red',  color: '#ff3b3b', dark: '#b01f1f', acw: 'Comma', cw: 'Period', group: -2, dir: -1 }
+};
+const REASONS = {
+  water: n => `${n}'s head touched the water`,
+  head:  n => `${n} bumped their head`,
+  bomb:  n => `${n} was blown up`,
+  out:   n => `${n} left the arena`
+};
+
+const engine = Engine.create({ positionIterations: 10, velocityIterations: 8, constraintIterations: 12 });
+engine.gravity.scale = TUNE.gravity;   // Matter's default is 0.001
+const keys = new Set();
+const scores = { blue: 0, red: 0 };
+
+// ---- game state
+let clock = performance.now();                       // the game clock: the timestamp of the frame being processed
+let cars = {};
+let state = 'ready', readyUntil = 0, roundStart = 0, banner = { title: '', sub: '', tag: '' };
+const losers = new Map();
+let particles = [], marks = [];
+let waterY = WATER_Y;                                // the water surface; sudden death can raise it
+let sd = null;                                       // sudden death: { kind, start, inset, bodies, bannerUntil }
+let roundNo = 0, nextPickupRound = randInt(3, 5), roundMod = null, wind = null;
+let shake = 0;                                       // screen shake amplitude in pixels
+let timeScale = 1, slow = null;                      // slow motion: { start, ms }
+let overAt = 0, overInfo = null, pendingWinner = null;   // end-of-round sequence
+let celebrate = null, fadeIn = null;                 // fade to the winner's colour / fade back at the next round
+let touchInfo = { touching: new Set(), wheelGround: new Map(), crumbleHits: new Set() };
+let testMode = false;                                // lets tests drive frames by hand
+let spawnEndX = 62, spawnWheelX = [44, -44];          // the car's half-length and wheel positions this round (a three-wheeler is longer)
+let spawnK = 1;                                      // how big the cars are this round (1 = normal, 2 = giant, 0.5 = teensy)
+let trailerLen = 0;                                  // how far behind the car a trailer reaches this round (0 = none)
+let forceModId = null;                               // force a particular special round (for testing)
+let rebuilds = 0;                                    // rounds rebuilt because a car would have started inside the ground (for tests)
+let lastImpact = 0;                                  // fastest wheel landing since the last reset (for tuning and tests)
+
+/* ---------- sound: everything is synthesised with the Web Audio API, so there are no sound files ---------- */
+const sfx = (() => {
+  let ac = null, master = null, muffler = null, noiseBuf = null, muted = false, volume = 0.6;
+  const engineNodes = {}, loops = {};
+  try { const sv = JSON.parse(localStorage.getItem('carGameSound') || '{}'); if (typeof sv.volume === 'number') volume = sv.volume; if (sv.muted) muted = true; } catch (e) { }
+  const pan = x => Math.max(-0.8, Math.min(0.8, (x - W / 2) / (W / 2)));       // sounds come from where they happen on screen
+  function ensure() {                                                          // browsers only allow audio after a key press or click
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ac = new AC();
+      muffler = ac.createBiquadFilter(); muffler.type = 'lowpass'; muffler.frequency.value = 20000;
+      master = ac.createGain(); master.gain.value = muted ? 0 : volume;
+      master.connect(muffler); muffler.connect(ac.destination);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return true;
+  }
+  const out = (node, p) => { if (p && ac.createStereoPanner) { const sp = ac.createStereoPanner(); sp.pan.value = p; node.connect(sp); sp.connect(master); } else node.connect(master); };
+  function tone(freq, dur, { type = 'sine', gain = 0.2, to = null, delay = 0, at = null } = {}) {
+    if (!ac || muted) return;
+    const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t); if (to) o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); out(g, at === null ? 0 : pan(at)); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(dur, { gain = 0.2, from = 2000, to = null, type = 'lowpass', q = 0.7, delay = 0, at = null } = {}) {
+    if (!ac || muted) return;
+    const t = ac.currentTime + delay, src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuf; f.type = type; f.Q.value = q; f.frequency.setValueAtTime(from, t); if (to) f.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(Math.max(0.0002, gain), t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(g); out(g, at === null ? 0 : pan(at)); src.start(t, Math.random()); src.stop(t + dur + 0.05);
+  }
+  function loop(name, type, freq, q) {                                         // a looping noise bed (wind, rain) whose volume we steer
+    if (loops[name]) return loops[name];
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuf; src.loop = true; f.type = type; f.frequency.value = freq; f.Q.value = q; g.gain.value = 0;
+    src.connect(f); f.connect(g); g.connect(master); src.start();
+    return loops[name] = g;
+  }
+  return {
+    ensure, get ready() { return !!ac; }, get ctx() { return ac; }, get muted() { return muted; }, get volume() { return volume; },
+    setVolume(v) { volume = v; if (master) master.gain.setTargetAtTime(muted ? 0 : v, ac.currentTime, 0.02); this.save(); },
+    setMuted(m) { muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : volume, ac.currentTime, 0.02); this.save(); },
+    save() { try { localStorage.setItem('carGameSound', JSON.stringify({ volume, muted })); } catch (e) { } },
+    // ---- one-shot effects
+    landing(impact, x) {                                                       // a thud that grows with the impact
+      if (impact < 3) return;
+      const k = Math.min(1, impact / 14);
+      noise(0.1 + k * 0.2, { gain: 0.05 + k * 0.35, from: 900, to: 150, at: x });
+      tone(95, 0.12 + k * 0.15, { to: 38, gain: 0.08 + k * 0.4, at: x });
+    },
+    bump(x) {                                                                  // a head bump: crunch, thud and zaps
+      noise(0.28, { gain: 0.5, from: 1800, to: 200, type: 'bandpass', at: x });
+      tone(170, 0.35, { type: 'sawtooth', to: 55, gain: 0.3, at: x });
+      for (let i = 0; i < 4; i++) tone(2200 - i * 300, 0.12, { type: 'square', to: 300, gain: 0.06, delay: 0.03 + i * 0.06, at: x });
+    },
+    splash(x) { noise(0.55, { gain: 0.4, from: 3500, to: 300, at: x }); noise(0.2, { gain: 0.25, from: 6000, type: 'highpass', at: x }); },
+    chime(kind, x) {
+      if (kind === 'boost') { noise(0.4, { gain: 0.18, from: 400, to: 5000, type: 'bandpass', at: x }); tone(440, 0.3, { type: 'sawtooth', to: 1320, gain: 0.12, at: x }); }
+      else { tone(880, 0.35, { gain: 0.18, at: x }); tone(1320, 0.45, { gain: 0.14, delay: 0.09, at: x }); tone(1760, 0.5, { gain: 0.1, delay: 0.18, at: x }); }
+    },
+    pop(x) { tone(700, 0.12, { type: 'triangle', to: 180, gain: 0.3, at: x }); noise(0.1, { gain: 0.25, from: 4000, type: 'highpass', at: x }); },
+    snap(x) { noise(0.09, { gain: 0.6, from: 2500, type: 'highpass', at: x }); tone(130, 0.18, { type: 'square', to: 55, gain: 0.25, at: x }); },
+    fuse(x) { noise(0.4, { gain: 0.1, from: 3500, type: 'highpass', at: x }); },
+    tick(left, x) { tone(left <= 1 ? 1400 : 1000, 0.07, { type: 'square', gain: 0.15, at: x }); if (left <= 1) tone(1400, 0.07, { type: 'square', gain: 0.15, delay: 0.25, at: x }); },
+    boom(x) {
+      noise(1.1, { gain: 0.85, from: 1800, to: 60, at: x });
+      tone(95, 0.9, { to: 28, gain: 0.7, at: x });
+      noise(0.3, { gain: 0.4, from: 6000, to: 800, type: 'highpass', at: x });
+    },
+    go() { tone(660, 0.1, { type: 'square', gain: 0.1 }); tone(990, 0.22, { type: 'square', gain: 0.1, delay: 0.12 }); },
+    special() { [330, 440, 554, 660].forEach((f, i) => tone(f, 0.14, { type: 'square', gain: 0.09, delay: i * 0.09 })); },
+    wah() { tone(330, 0.25, { type: 'triangle', to: 200, gain: 0.2 }); tone(250, 0.45, { type: 'triangle', to: 120, gain: 0.2, delay: 0.22 }); },
+    win() { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, 0.2, { type: 'triangle', gain: 0.16, delay: i * 0.11 })); },
+    siren() { for (let i = 0; i < 6; i++) tone(i % 2 ? 560 : 780, 0.2, { type: 'square', gain: 0.1, delay: i * 0.22 }); },
+    rumble(x) { noise(0.8, { gain: 0.35, from: 260, to: 120, at: x }); },
+    crash(x) { noise(0.5, { gain: 0.5, from: 1200, to: 150, at: x }); tone(70, 0.4, { to: 35, gain: 0.35, at: x }); },
+    // ---- continuous sounds, steered every frame
+    engines(cars, state) {                                                     // each car has its own engine note, panned to its side
+      if (!ac) return;
+      const now = ac.currentTime;
+      for (const id in cars) {
+        const c = cars[id];
+        if (!engineNodes[id]) {
+          const o1 = ac.createOscillator(), o2 = ac.createOscillator(), lp = ac.createBiquadFilter(), g = ac.createGain();
+          o1.type = 'sawtooth'; o2.type = 'square'; lp.type = 'lowpass'; lp.frequency.value = 500; g.gain.value = 0;
+          o1.connect(lp); o2.connect(lp); lp.connect(g); out(g, id === 'blue' ? -0.5 : 0.5); o1.start(); o2.start();
+          engineNodes[id] = { o1, o2, lp, g };
+        }
+        const e = engineNodes[id], thr = c.throttle || 0;
+        const spin = Math.min(1, (Math.abs(c.wheels[0].angularVelocity) + Math.abs(c.wheels[1].angularVelocity)) / 1.6);
+        const f = (48 + 130 * spin + 45 * thr) / Math.pow(c.carScale, 0.6) / Math.pow(Math.max(0.6, c.wheelR / 19.4), 0.3);   // teensy cars buzz, monsters rumble
+        e.o1.frequency.setTargetAtTime(f, now, 0.06); e.o2.frequency.setTargetAtTime(f * 0.5, now, 0.06);
+        e.lp.frequency.setTargetAtTime(350 + 900 * thr + 400 * spin, now, 0.08);
+        e.g.gain.setTargetAtTime(state === 'playing' || state === 'over' ? 0.02 + 0.05 * thr + 0.03 * spin : 0, now, 0.1);
+      }
+    },
+    ambient(kind, clockNow) {                                                  // wind in a gale, rain in a storm
+      if (!ac) return;
+      const now = ac.currentTime;
+      loop('wind', 'bandpass', 520, 0.5).gain.setTargetAtTime(kind === 'wind' ? 0.11 * (0.7 + 0.3 * Math.sin(clockNow / 1100)) : 0, now, 0.3);
+      loop('rain', 'highpass', 3800, 0.4).gain.setTargetAtTime(kind === 'storm' ? 0.08 : 0, now, 0.3);
+    },
+    muffle(timeScale) {                                                        // slow motion muffles everything, like being underwater
+      if (!ac) return;
+      muffler.frequency.setTargetAtTime(Math.max(450, 18000 * timeScale * timeScale * timeScale), ac.currentTime, 0.05);
+    }
+  };
+})();
+
+/* ---------- particles ---------- */
+const SPARK_COLORS = ['#fff7b0', '#ffd23f', '#ff9f1c', '#ff6b1c', '#ffffff'];
+const surfaceRgb = s => s === 'shield' ? '120,220,255' : s === 'ice' ? '235,248,255' : s === 'mud' ? '80,52,30' : s === 'gold' ? '255,200,60' : '196,168,126';
+function spawnSparks(x, y) {
+  particles.push({ type: 'flash', x, y, life: 0.15, max: 0.15 });
+  for (let i = 0; i < 55; i++) {
+    const a = Math.random() * Math.PI * 2, sp = rand(120, 560), life = rand(0.6, 1.5);
+    particles.push({ type: 'spark', x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, life, max: life, color: SPARK_COLORS[i % SPARK_COLORS.length] });
+  }
+}
+// Soft puffs of dust (or snow, or mud) kicked up from a point.
+function spawnDust(x, y, n, surface = 'normal', o = {}) {
+  const { spread = 1, speed = [30, 130], size = [5, 11] } = o;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + rand(-1.4, 1.4) * spread, sp = rand(speed[0], speed[1]), life = rand(0.35, 0.8);
+    particles.push({ type: 'dust', x: x + rand(-5, 5), y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life, max: life, r: rand(size[0], size[1]), grow: rand(14, 30), rgb: surfaceRgb(surface) });
+  }
+}
+function updateParticles(dt) {
+  for (const p of particles) {
+    p.life -= dt;
+    if (p.type === 'flash' || p.type === 'streak' || p.type === 'blast') continue;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.type === 'spark') { p.vy += 900 * dt; p.vx *= Math.pow(0.35, dt); }
+    else if (p.type === 'dust') { p.vx *= Math.pow(0.15, dt); p.vy *= Math.pow(0.25, dt); p.vy -= 20 * dt; p.r += p.grow * dt; }
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+function drawParticles() {
+  ctx.save();
+  for (const p of particles) {
+    const k = Math.max(0, p.life / p.max);
+    ctx.globalAlpha = 1;
+    if (p.type === 'flash') {
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 40);
+      g.addColorStop(0, `rgba(255,255,220,${k})`); g.addColorStop(1, 'rgba(255,200,60,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 40, 0, 7); ctx.fill();
+    } else if (p.type === 'spark') {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = Math.min(1, k * 1.5); ctx.strokeStyle = p.color; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); ctx.stroke();
+    } else if (p.type === 'dust') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(${p.rgb},${(0.5 * k).toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7); ctx.fill();
+    } else if (p.type === 'text') {
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = Math.min(1, k * 2);
+      ctx.font = '800 30px "Segoe UI", Arial, sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.strokeText(p.text, p.x, p.y); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y);
+    } else if (p.type === 'blast') {
+      ctx.globalCompositeOperation = 'lighter';
+      const r = 40 + (1 - k) * 240, g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+      g.addColorStop(0, `rgba(255,240,180,${k})`); g.addColorStop(0.5, `rgba(255,140,40,${(0.6 * k).toFixed(3)})`); g.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7); ctx.fill();
+    } else if (p.type === 'gust') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(255,255,255,${(0.4 * k).toFixed(3)})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - Math.sign(p.vx) * p.len, p.y); ctx.stroke();
+    } else if (p.type === 'rain') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(190,215,255,0.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.02, p.y - p.vy * 0.02); ctx.stroke();
+    } else if (p.type === 'streak') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = `rgba(255,255,255,${(0.65 * k).toFixed(3)})`; ctx.lineWidth = 2; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.dx * p.len, p.y - p.dy * p.len); ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+// Skid marks stay on the ground for a few seconds and fade.
+const MARK_LIFE = 8000, MAX_MARKS = 700;
+function addMark(x1, y1, x2, y2, rgb) {
+  marks.push({ x1, y1, x2, y2, t: clock, rgb });
+  if (marks.length > MAX_MARKS) marks.shift();
+}
+function drawMarks(now) {
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineWidth = 4;
+  marks = marks.filter(m => now - m.t < MARK_LIFE);
+  for (const m of marks) {
+    ctx.strokeStyle = `rgba(${m.rgb},${(0.5 * (1 - (now - m.t) / MARK_LIFE)).toFixed(3)})`;
+    ctx.beginPath(); ctx.moveTo(m.x1, m.y1); ctx.lineTo(m.x2, m.y2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- level building blocks ---------- */
+const CX = W / 2, CY = 350, RX = 625, RY = 315;
+const TERRAIN_FRICTION = 2.5;
+const TERRAIN_PROPS = { friction: TERRAIN_FRICTION, frictionStatic: 10, label: 'terrain' };
+const liftGap = () => WHEEL_R + 7 + WHEEL_Y;     // design-centre height above a surface so the wheels start just clear of it
+
+// The level being played: { id, name, bg, items[] (what to draw), samples[] (terrain points for clearance tests),
+// straights[] (straight stretches that surface patches can sit on), rotors[], ringPts, ringFn, spawn: { blue, red } }
+let L = null;
+let lastLevelId = null, forceLevelId = null;
+const newLevel = def => ({ id: def.id, name: def.name, bg: 'sky', bare: !!def.bare, items: [], samples: [], straights: [], rotors: [], movers: [], pickups: [], time: 0, spawn: null, ringFn: null, ringPts: null, extras: [] });
+
+// Is a point in open air (not inside an island, outside the ring, or under the ground)?
+function insidePoly(pts, x, y) {
+  let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i], b = pts[j];
+    if ((a.y > y) !== (b.y > y) && x < (b.x - a.x) * (y - a.y) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+}
+function landY(pts, x) {
+  for (let i = 0; i < pts.length - 1; i++) if (pts[i + 1].x > pts[i].x && x >= pts[i].x && x <= pts[i + 1].x) return pts[i].y + (x - pts[i].x) / (pts[i + 1].x - pts[i].x) * (pts[i + 1].y - pts[i].y);
+  return Infinity;
+}
+const freeAir = (x, y) => L.items.every(it => it.type === 'blob' ? !insidePoly(it.pts, x, y) : it.type === 'ring' ? insidePoly(it.pts, x, y) : it.type === 'land' ? y < landY(it.pts, x) - 10 : true);
+const nearSpawn = (x, y, d) => ['blue', 'red'].some(id => Math.hypot(x - L.spawn[id].P.x, y - L.spawn[id].P.y) < d);
+const clearOf = (pts, d) => pts.every(p => L.samples.every(q => Math.hypot(p.x - q.x, p.y - q.y) >= d));
+const slabPts = (cx, cy, len, ang) => {
+  const cs = Math.cos(ang), sn = Math.sin(ang), pts = [];
+  for (let t = -len / 2; t <= len / 2; t += 20) pts.push({ x: cx + cs * t, y: cy + sn * t });
+  return pts;
+};
+function setSpawns(blue, red) {
+  if (!blue || !red) return false;
+  L.spawn = { blue, red };
+  return true;
+}
+
+// Static collision chain: each segment is a thin rectangle whose surface edge lies on the polyline.
+// solid = +1 when the solid side faces away from the centre (the ring, open land), -1 when it faces inward (islands).
+function addChain(pts, centre, solid, thick, closed = true) {
+  const bodies = [], n = closed ? pts.length : pts.length - 1;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    let nx = -dy / len, ny = dx / len;
+    if ((nx * (mid.x - centre.x) + ny * (mid.y - centre.y)) * solid < 0) { nx = -nx; ny = -ny; }
+    bodies.push(Bodies.rectangle(mid.x + nx * thick / 2, mid.y + ny * thick / 2, len + 4, thick,
+      { ...TERRAIN_PROPS, isStatic: true, angle: Math.atan2(dy, dx) }));
+  }
+  Composite.add(engine.world, bodies);
+}
+
+// Closed, undulating ramp that circles the screen. Cars drive on its inside surface.
+function addRing(amp = [0.025, 0.05], circle = false) {
+  const hs = [2, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5).slice(0, 3).map(k => ({ k, a: rand(amp[0], amp[1]), p: rand(0, Math.PI * 2) }));
+  L.ringFn = th => {
+    const rho = 1 + hs.reduce((n, h) => n + h.a * Math.sin(h.k * th + h.p), 0);
+    return {
+      x: Math.max(12, Math.min(W - 12, CX + RX * rho * Math.cos(th))),
+      y: Math.max(30, Math.min(H - 8, CY + RY * rho * Math.sin(th)))
+    };
+  };
+  if (circle) L.ringFn = th => ({ x: CX + 322 * Math.cos(th), y: 345 + 322 * Math.sin(th) });   // a perfect circle, its bottom just above the water
+  L.ringPts = Array.from({ length: 200 }, (_, i) => L.ringFn(i / 200 * Math.PI * 2));
+  addChain(L.ringPts, { x: CX, y: CY }, 1, 40);
+  L.items.push({ type: 'ring', pts: L.ringPts });
+  L.samples.push(...L.ringPts);
+  L.bg = 'ring';
+}
+// Where a car starts in the ring: on the lower sides, lying along the surface.
+function ringSpawn(id) {
+  for (const maxSlope of [0.45, 0.6, 0.8, 1.1]) {          // prefer gentle ground, relax if the ring has none
+    for (let i = 0; i < 80; i++) {
+      const th = Math.PI / 2 + (id === 'blue' ? 1 : -1) * (trailerLen ? rand(0.2, 1.1) : rand(0.6, 1.35));   // nearer the flatter bottom with a trailer
+      const p = L.ringFn(th);
+      if (p.y > WATER_Y - 45) continue;
+      const q1 = L.ringFn(th - 0.01), q2 = L.ringFn(th + 0.01);
+      let tx = q2.x - q1.x, ty = q2.y - q1.y;
+      if (tx < 0) { tx = -tx; ty = -ty; }
+      if (Math.abs(ty / tx) > maxSlope) continue;
+      const l = Math.hypot(tx, ty); tx /= l; ty /= l;
+      let raise = 0;                                            // a big car on a curve needs to start a little higher so its wheels clear the ground
+      if (spawnK !== 1 || spawnEndX > 62) {
+        while (raise <= 60 && !carFootprintOk(L.ringPts, true, { x: p.x + ty * raise, y: p.y - tx * raise }, { x: tx, y: ty }, { x: -ty, y: tx })) raise += 4;
+        if (raise > 60) continue;
+      }
+      let P = { x: p.x + ty * (liftGap() + raise), y: p.y - tx * (liftGap() + raise) };
+      if (trailerLen) {          // a trailer on a curved wall: start the pair a little above it so the trailer clears the rising ground, then it settles down
+        let fitted = false;
+        for (let extra = 0; extra <= 40 && !fitted; extra += 5) {
+          P = { x: p.x + ty * (liftGap() + raise + extra), y: p.y - tx * (liftGap() + raise + extra) };
+          fitted = trailerFits(L.ringPts, true, P, { x: tx, y: ty }, { x: -ty, y: tx }, id === 'blue' ? -1 : 1, 80);
+        }
+        if (!fitted) continue;
+      }
+      return { P, ang: Math.atan2(ty, tx) };
+    }
+  }
+  return { P: { x: id === 'blue' ? 300 : 980, y: 500 }, ang: 0 };
+}
+
+// Random boxy floating island. pw < 1 makes it boxier; rot tilts it.
+function addBlob(c, rx, ry, o = {}) {
+  const { pw = 0.7, noise = [0.02, 0.1], rot = 0 } = o;
+  const hs = [2, 3, 4, 5].map(k => ({ k, a: rand(noise[0], noise[1]), p: rand(0, Math.PI * 2) }));
+  const N = Math.max(48, Math.round((rx + ry) / 4)), pts = [];
+  for (let i = 0; i < N; i++) {
+    const th = i / N * Math.PI * 2, rho = 1 + hs.reduce((n, h) => n + h.a * Math.sin(h.k * th + h.p), 0);
+    const cs = Math.cos(th), sn = Math.sin(th);
+    const x = rx * rho * Math.sign(cs) * Math.abs(cs) ** pw, y = ry * rho * Math.sign(sn) * Math.abs(sn) ** pw;
+    pts.push({ x: c.x + x * Math.cos(rot) - y * Math.sin(rot), y: c.y + x * Math.sin(rot) + y * Math.cos(rot) });
+  }
+  addChain(pts, c, -1, 30);
+  L.items.push({ type: 'blob', pts });
+  L.samples.push(...pts);
+  return { c, pts };
+}
+// Straight stretches of a polyline (within 3.5 px of their chord) at least 150 px long: places for surface patches.
+function straightRuns(pts) {
+  const out = [];
+  let i = 0;
+  while (i < pts.length - 1) {
+    let best = 0;
+    for (let j = i + 1; j < pts.length; j++) {
+      const a = pts[i], b = pts[j], len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1e-6) break;
+      const nx = -(b.y - a.y) / len, ny = (b.x - a.x) / len;
+      let ok = true;
+      for (let k = i + 1; k < j; k++) if (Math.abs((pts[k].x - a.x) * nx + (pts[k].y - a.y) * ny) > 3.5) { ok = false; break; }
+      if (!ok) break;
+      best = j;
+    }
+    if (best && Math.hypot(pts[best].x - pts[i].x, pts[best].y - pts[i].y) >= 150) { out.push({ a: pts[i], b: pts[best] }); i = best; }
+    else i++;
+  }
+  return out;
+}
+// Open terrain: a top-surface polyline running left to right, solid below, filled down to the bottom of the screen.
+function addLand(pts) {
+  addChain(pts, { x: W / 2, y: -1e5 }, 1, 40, false);
+  L.items.push({ type: 'land', pts });
+  L.samples.push(...pts);
+  L.straights.push(...straightRuns(pts));
+}
+function addSlab(cx, cy, len, ang, th = 18) {
+  const body = Bodies.rectangle(cx, cy, len, th, { ...TERRAIN_PROPS, isStatic: true, angle: ang });
+  Composite.add(engine.world, body);
+  L.samples.push(...slabPts(cx, cy, len, ang));
+  const cs = Math.cos(ang), sn = Math.sin(ang), ux = sn * th / 2, uy = -cs * th / 2;   // half a slab-thickness up the normal
+  const s = { type: 'slab', cx, cy, len, ang, th, body };
+  body.slab = s;
+  L.straights.push({ a: { x: cx - cs * len / 2 + ux, y: cy - sn * len / 2 + uy }, b: { x: cx + cs * len / 2 + ux, y: cy + sn * len / 2 + uy }, slab: s });
+  L.items.push(s);
+  return s;
+}
+// A spinning bar (or cross) that cars can ride or be swatted by. It is a massive, inertia-free body that is
+// pinned back to its pivot every step and given a constant spin, so it behaves like a motor-driven platform.
+function addRotor(cx, cy, len, speed, arms = 1, th = 16) {
+  const parts = Array.from({ length: arms }, (_, i) => Bodies.rectangle(cx, cy, len, th, { ...TERRAIN_PROPS, angle: i * Math.PI / arms }));
+  const body = Body.create({ parts, friction: TERRAIN_FRICTION, frictionStatic: 10 });
+  Body.setMass(body, 1e6); Body.setInertia(body, Infinity);
+  Body.setAngle(body, rand(0, Math.PI));
+  Composite.add(engine.world, body);
+  L.items.push({ type: 'rotor', body, len, th, arms, ri: L.rotors.length });
+  L.rotors.push({ body, pos: { x: cx, y: cy }, w: speed, len });
+}
+// Place a rotor somewhere random that keeps clear of the terrain, the spawn points and other rotors.
+function addRotorRandom({ x, y, len, arms = 1, speed = [0.5, 1.2] }) {
+  for (let i = 0; i < 80; i++) {
+    const l = rand(len[0], len[1]), c = { x: rand(x[0], x[1]), y: rand(y[0], y[1]) };
+    if (c.x - l / 2 < 30 || c.x + l / 2 > W - 30 || c.y - l / 2 < 50 || c.y + l / 2 > WATER_Y - 40) continue;
+    if (L.samples.some(q => Math.hypot(c.x - q.x, c.y - q.y) < l / 2 + 50)) continue;
+    if (['blue', 'red'].some(id => Math.hypot(c.x - L.spawn[id].P.x, c.y - L.spawn[id].P.y) < l / 2 + 100)) continue;
+    if (L.rotors.some(r => Math.hypot(c.x - r.pos.x, c.y - r.pos.y) < (l + r.len) / 2 + 30)) continue;
+    addRotor(c.x, c.y, l, rand(speed[0], speed[1]) * pick([-1, 1]), typeof arms === 'function' ? arms() : arms);
+    return true;
+  }
+  return false;
+}
+
+// Distance from a point to a polyline (closed or open).
+function polyDist(pts, pt, closed) {
+  let best = Infinity;
+  const n = closed ? pts.length : pts.length - 1;
+  for (let i = 0; i < n; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], dx = b.x - a.x, dy = b.y - a.y;
+    const t = Math.max(0, Math.min(1, ((pt.x - a.x) * dx + (pt.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(pt.x - (a.x + t * dx), pt.y - (a.y + t * dy)));
+  }
+  return best;
+}
+// Does the whole car, at this round's size, fit on this ground at point p? Both wheels and the nose and tail corners must be clear of it.
+function carFootprintOk(pts, closed, p, xa, ya) {
+  const K = spawnK, lift = K * (WHEEL_Y + WHEEL_R) + 7, P = { x: p.x - ya.x * lift, y: p.y - ya.y * lift };
+  return [...spawnWheelX.map(wx => [wx * K, WHEEL_Y * K, WHEEL_R * K + 2]), [spawnEndX * K, 10 * K, 3], [-spawnEndX * K, 10 * K, 3]].every(([x, y, r]) =>
+    polyDist(pts, { x: P.x + xa.x * x + ya.x * y, y: P.y + xa.y * x + ya.y * y }, closed) >= r);
+}
+// With a trailer, the ground behind the car must carry it: its wheels resting on the ground, and the box above clear of it.
+// behindSign is the way along the ground away from the car's nose (blue faces right, red faces left).
+function trailerFits(pts, closed, P, xa, ya, behindSign, maxD = 40) {
+  if (!trailerLen) return true;
+  const bx = behindSign * xa.x, by = behindSign * xa.y;
+  const at = (t, y) => ({ x: P.x + bx * t + ya.x * y, y: P.y + by * t + ya.y * y });
+  for (const t of [92, 124, 156]) { const d = polyDist(pts, at(t, 30), closed); if (d < 14 || d > maxD) return false; }
+  for (const t of [100, 140, 176]) if (polyDist(pts, at(t, 18), closed) < 4) return false;
+  return true;
+}
+// Spawn on the top surface of a polyline (island top, land) within an x range, lying along the surface.
+function surfaceSpawn(pts, xLo, xHi, maxSlope = 0.35, closed = true) {
+  const n = pts.length, cand = [];
+  for (let i = 0; i < n; i++) {
+    if (!closed && (i === 0 || i === n - 1)) continue;
+    const p = pts[i];
+    if (p.x < xLo || p.x > xHi) continue;
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    let tx = b.x - a.x, ty = b.y - a.y;
+    if (tx < 0) { tx = -tx; ty = -ty; }
+    if (tx < 1e-6 || Math.abs(ty / tx) > maxSlope) continue;
+    if (pts.some(q => q !== p && Math.abs(q.x - p.x) < 12 && q.y < p.y - 6)) continue;   // not the underside
+    if (!closed) {                                                                       // on open land the ground must not curve sharply under the car
+      const a4 = pts[Math.max(0, i - 4)], b4 = pts[Math.min(n - 1, i + 4)];
+      if (Math.abs(Math.atan2(p.y - a4.y, p.x - a4.x) - Math.atan2(b4.y - p.y, b4.x - p.x)) > 0.18) continue;
+    }
+    const tl = Math.hypot(tx, ty);
+    if (closed && insidePoly(pts, p.x + ty / tl * 12, p.y - tx / tl * 12)) continue;     // the air above must not be inside the island
+    // The whole car must fit: both wheels and the nose and tail corners clear of this ground, however it bumps and curves
+    const l0 = Math.hypot(tx, ty), xa = { x: tx / l0, y: ty / l0 }, ya = { x: -ty / l0, y: tx / l0 };      // along the car, and down through it
+    if (!carFootprintOk(pts, closed, p, xa, ya)) continue;
+    const P = { x: p.x - ya.x * liftGap(), y: p.y - ya.y * liftGap() };
+    if (!trailerFits(pts, closed, P, xa, ya, p.x < W / 2 ? -1 : 1)) continue;
+    cand.push({ p, tx, ty });
+  }
+  if (!cand.length) return null;
+  const { p, tx, ty } = pick(cand), l = Math.hypot(tx, ty);
+  return { P: { x: p.x + ty / l * liftGap(), y: p.y - tx / l * liftGap() }, ang: Math.atan2(ty, tx) };
+}
+const xSpan = (pts, lo, hi) => {
+  const xs = pts.map(p => p.x), a = Math.min(...xs), w = Math.max(...xs) - a;
+  return [a + lo * w, a + hi * w];
+};
+const topSpawn = (blob, lo = 0.3, hi = 0.7, maxSlope = 0.35) => surfaceSpawn(blob.pts, ...xSpan(blob.pts, lo, hi), maxSlope);
+
+// A random slab for a car to start on: left half for blue, right half for red.
+function startSlab(id, o = {}) {
+  const { y = [180, 430], len = trailerLen ? [320, 400] : spawnK > 1 ? [380, 460] : spawnEndX > 62 ? [300, 380] : [200, 300], tilt = 0.2 } = o, left = id === 'blue';
+  for (let i = 0; i < 300; i++) {
+    const l = rand(len[0], len[1]), ang = rand(-tilt, tilt);
+    const xLo = left ? Math.max(180, l / 2 + 40) : 830, xHi = left ? 450 : Math.min(1100, W - l / 2 - 40);
+    if (xHi < xLo) continue;
+    const c = { x: rand(xLo, xHi), y: rand(y[0], y[1]) };
+    if (slabPts(c.x, c.y, l, ang).some(q => q.x < 30 || q.x > W - 30) || !clearOf(slabPts(c.x, c.y, l, ang), 90)) continue;
+    const lo = -l / 2 + (trailerLen && left ? 200 : (spawnEndX + 8) * spawnK), hi = l / 2 - (trailerLen && !left ? 200 : (spawnEndX + 8) * spawnK);      // with a trailer, leave room behind the car
+    if (hi < lo) continue;
+    const s = addSlab(c.x, c.y, l, ang);
+    const cs = Math.cos(ang), sn = Math.sin(ang), t = rand(lo, hi), lift = s.th / 2 + liftGap();
+    return { P: { x: c.x + cs * t + sn * lift, y: c.y + sn * t - cs * lift }, ang };
+  }
+  return null;
+}
+const addIsland = () => addBlob({ x: CX + rand(-90, 90), y: CY + rand(-60, 50) }, rand(110, 170), rand(35, 60), { pw: 0.7, noise: [0.02, 0.1] });
+
+// A floor across the bottom so a fall is not the end: flat, rolling hills, or flat with water pits to drive out of.
+function addFloor(forceKind) {
+  const kind = forceKind || pick(['flat', 'hills', 'pits']);
+  const base = rand(615, 645);
+  const hs = [3, 4, 5].sort(() => Math.random() - 0.5).slice(0, 2).map(k => ({ k, a: rand(12, 25), p: rand(0, 6.28) }));
+  const pits = [];
+  if (kind === 'pits') {
+    for (let i = randInt(1, 2); i > 0; i--) {
+      const c = rand(250, 1030), w = rand(180, 260);
+      if (pits.every(q => Math.abs(q.c - c) > 320)) pits.push({ c, w, y: rand(690, H - 8) });
+    }
+  }
+  const pts = [];
+  for (let x = 0; x <= W; x += 16) {
+    let y = base + rand(-1, 1) * 2;
+    if (kind === 'hills') y += hs.reduce((n, h) => n + h.a * Math.sin(h.k * 2 * Math.PI * x / W + h.p), 0);
+    for (const q of pits) if (Math.abs(x - q.c) < q.w / 2) y += (q.y - base) * 0.5 * (1 + Math.cos(Math.PI * (x - q.c) / (q.w / 2)));
+    pts.push({ x, y: Math.max(585, Math.min(H - 8, y)) });
+  }
+  addLand(pts);
+  L.extras.push(kind === 'flat' ? 'floor' : kind === 'hills' ? 'hilly floor' : 'floor with water pits');
+}
+// Solid side walls so cars cannot drive or fly off the sides.
+function addWalls() {
+  for (const x of [-20, W + 20]) Composite.add(engine.world, Bodies.rectangle(x, H / 2, 64, H * 3, { ...TERRAIN_PROPS, isStatic: true }));
+  L.items.push({ type: 'wall' });
+  L.extras.push('side walls');
+}
+
+/* ---------- surface patches: ice and mud ---------- */
+const PATCH = {
+  ice: { friction: 0.004, frictionStatic: 0.004, label: 'ice patch' },
+  mud: { friction: 3, frictionStatic: 10, label: 'sticky mud' }
+};
+// A raised strip (7 px high, tapered ends) lying on a straight stretch of ground.
+function addPatch(a, b, kind) {
+  const T = 7, inset = 8, len = Math.hypot(b.x - a.x, b.y - a.y);
+  const d = { x: (b.x - a.x) / len, y: (b.y - a.y) / len }, u = { x: d.y, y: -d.x };
+  const roof = len - 2 * inset, hc = (T / 3) * (len + 2 * roof) / (len + roof);     // height of the trapezoid's centre of mass
+  const mid = { x: (a.x + b.x) / 2 + u.x * hc, y: (a.y + b.y) / 2 + u.y * hc };
+  const p = PATCH[kind];
+  const body = Bodies.trapezoid(mid.x, mid.y, len, T, 2 * inset / len,
+    { isStatic: true, angle: Math.atan2(d.y, d.x), friction: p.friction, frictionStatic: p.frictionStatic, label: 'terrain' });
+  body.surface = kind;
+  body.friction = p.friction;                      // Matter resets a static body's friction to 1, so set it after creation
+  Composite.add(engine.world, body);
+  L.items.push({ type: 'patch', kind, a, b, d, u, T, inset });
+  if (!L.extras.includes(p.label)) L.extras.push(p.label);
+}
+function addSurfaces() {
+  const roll = Math.random(), n = roll < 0.25 ? 0 : roll < 0.6 ? 1 : roll < 0.85 ? 2 : 3;
+  const segs = L.straights.filter(s => !(s.slab && s.slab.crumble) && s.a.x < s.b.x && Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y) >= 150 && Math.abs(s.b.y - s.a.y) / (s.b.x - s.a.x) < 0.6).sort(() => Math.random() - 0.5);
+  let placed = 0;
+  for (const s of segs) {
+    if (placed >= n) break;
+    const len = Math.hypot(s.b.x - s.a.x, s.b.y - s.a.y), d = { x: (s.b.x - s.a.x) / len, y: (s.b.y - s.a.y) / len };
+    const patchLen = Math.min(len - 40, rand(110, 190)), s0 = rand(20, len - patchLen - 20);
+    const a = { x: s.a.x + d.x * s0, y: s.a.y + d.y * s0 }, b = { x: a.x + d.x * patchLen, y: a.y + d.y * patchLen };
+    // keep clear of the start positions so a round never begins on a patch
+    if (['blue', 'red'].some(id => [a, b, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }].some(q => Math.hypot(q.x - L.spawn[id].P.x, q.y - L.spawn[id].P.y) < 170))) continue;
+    addPatch(a, b, pick(['ice', 'mud']));
+    placed++;
+  }
+}
+
+/* ---------- the level catalogue: each is a basic idea with random variations ---------- */
+const LEVELS = [
+  { id: 'bowl', name: 'The Bowl', build() {                 // ring ramp round the screen + random island; cars start on the ring
+      addRing(); addIsland();
+      return setSpawns(ringSpawn('blue'), ringSpawn('red'));
+  } },
+  { id: 'bowl-pads', name: 'Bowl & Launch Pads', build() {  // the same, but each car starts on its own platform
+      addRing(); addIsland();
+      return setSpawns(startSlab('blue'), startSlab('red'));
+  } },
+  { id: 'circle', name: 'The Circle', bare: true, build() {  // a perfectly round arena and nothing else: no island, no extras, no patches
+      addRing([0, 0], true);
+      return setSpawns(ringSpawn('blue'), ringSpawn('red'));
+  } },
+  { id: 'twin', name: 'Twin Islands', floor: 0.8, walls: 0.5, movers: 0.3, build() {             // two big floating islands, sometimes with a stepping stone between
+      for (let i = 0; i < 30; i++) {
+        const rxL = rand(130, 200), rxR = rand(130, 200), cxL = rand(240, 380), cxR = rand(900, 1040);
+        if (cxR - rxR - (cxL + rxL) < 140) continue;
+        const a = addBlob({ x: cxL, y: rand(300, 480) }, rxL, rand(40, 70), { pw: rand(0.55, 0.9), noise: [0.02, 0.1] });
+        const b = addBlob({ x: cxR, y: rand(300, 480) }, rxR, rand(40, 70), { pw: rand(0.55, 0.9), noise: [0.02, 0.1] });
+        if (Math.random() < 0.45) addBlob({ x: W / 2 + rand(-40, 40), y: rand(250, 400) }, rand(45, 65), rand(18, 26), { pw: 0.7 });
+        return setSpawns(topSpawn(a), topSpawn(b));
+      }
+      return false;
+  } },
+  { id: 'long', name: 'Long Island', floor: 0.8, walls: 0.5, movers: 0.3, build() {              // one long, slightly tilted island; sometimes islets above it
+      const cy = rand(330, 470), ry = rand(28, 48);
+      const isl = addBlob({ x: CX + rand(-40, 40), y: cy }, rand(380, 500), ry, { pw: 0.6, noise: [0.01, 0.05], rot: rand(-0.12, 0.12) });
+      if (Math.random() < 0.5) for (let i = randInt(1, 2); i > 0; i--) addBlob({ x: rand(450, 830), y: rand(110, Math.min(190, cy - 190)) }, rand(60, 90), rand(18, 28), { pw: 0.7 });
+      return setSpawns(topSpawn(isl, 0.18, 0.34, 0.4), topSpawn(isl, 0.66, 0.82, 0.4));
+  } },
+  { id: 'rotor-bowl', name: 'Rotor Bowl', build() {          // the bowl with 2-3 spinning bars in the middle
+      addRing();
+      if (Math.random() < 0.5) addBlob({ x: CX + rand(-200, 200), y: CY + rand(-40, 60) }, rand(80, 120), rand(30, 45), { pw: 0.7 });
+      if (!setSpawns(ringSpawn('blue'), ringSpawn('red'))) return false;
+      let n = 0;
+      for (let i = randInt(2, 3); i > 0; i--) if (addRotorRandom({ x: [250, 1030], y: [200, 520], len: [170, 260] })) n++;
+      return n >= 2;
+  } },
+  { id: 'rotor-bridge', name: 'Rotor Bridge', floor: 1, floorKind: 'hills', walls: 0.5, movers: 0.3, build() {      // start slabs either side of the water, spinning platforms to hop across
+      if (!setSpawns(startSlab('blue', { y: [260, 460], tilt: 0.12 }), startSlab('red', { y: [260, 460], tilt: 0.12 }))) return false;
+      let n = 0;
+      for (let i = randInt(1, 3); i > 0; i--) if (addRotorRandom({ x: [430, 850], y: [260, 440], len: [170, 260], arms: () => pick([1, 2]) })) n++;
+      return n >= 1;
+  } },
+  { id: 'scatter', name: 'Scatter', floor: 0.8, walls: 0.5, movers: 0.3, crumble: 0.35, build() {                // start slabs plus a random scatter of sloped slabs
+      if (!setSpawns(startSlab('blue', { y: [220, 450] }), startSlab('red', { y: [220, 450] }))) return false;
+      for (let i = randInt(3, 5); i > 0; i--) {
+        for (let k = 0; k < 80; k++) {
+          const len = rand(160, 340), ang = Math.random() < 0.4 ? 0 : pick([-1, 1]) * rand(0.12, 0.38);
+          const c = { x: rand(100, 1180), y: rand(150, 590) }, pts = slabPts(c.x, c.y, len, ang);
+          if (pts.some(p => p.x < 20 || p.x > W - 20 || p.y < 90 || p.y > WATER_Y - 70) || !clearOf(pts, 90)) continue;
+          addSlab(c.x, c.y, len, ang);
+          break;
+        }
+      }
+      return true;
+  } },
+  { id: 'valley', name: 'The Valley', floor: 0, walls: 0.6, build() {             // flat shoulders at each side, a deep undulating valley between, open at the top
+      const top = rand(160, 330), bottom = Math.min(top + rand(250, 360), 705);
+      const hs = [3, 4, 5].sort(() => Math.random() - 0.5).slice(0, 2).map(k => ({ k, a: rand(8, 22), p: rand(0, 6.28) }));
+      const smooth = t => t * t * (3 - 2 * t);
+      const pts = [];
+      for (let x = 0; x <= W; x += 16) {
+        const d = Math.abs(x / W - 0.5), sv = smooth(Math.max(0, Math.min(1, (0.3 - d) / 0.3)));      // 0 on the flat shoulders, 1 in the valley's middle
+        const bump = hs.reduce((n, h) => n + h.a * Math.sin(h.k * 2 * Math.PI * x / W + h.p), 0) * sv;
+        pts.push({ x, y: Math.max(130, Math.min(H - 20, top + (bottom - top) * sv + bump)) });
+      }
+      addLand(pts);
+      if (Math.random() < 0.5) addBlob({ x: W / 2 + rand(-150, 150), y: rand(190, 310) }, rand(90, 140), rand(25, 40), { pw: 0.7 });
+      return setSpawns(surfaceSpawn(pts, 110, 330, 0.15, false) || surfaceSpawn(pts, 110, 360, 0.3, false),
+                       surfaceSpawn(pts, W - 330, W - 110, 0.15, false) || surfaceSpawn(pts, W - 360, W - 110, 0.3, false));
+  } },
+  { id: 'ramps', name: 'Ramps & Gap', floor: 0, walls: 0.6, build() {             // two landmasses with launch ramps and a water gap between them
+      const gap = rand(240, 380), mid = W / 2 + rand(-40, 40), lipL = mid - gap / 2, lipR = mid + gap / 2;
+      // gentle enough to climb: the slope at the lip is 2 x rise / length, kept to about 0.45-0.68 radians
+      const rampL = Math.min(rand(240, 340), lipL - 260), rampR = Math.min(rand(240, 340), W - lipR - 260);
+      const riseL = rampL * rand(0.22, 0.34), riseR = rampR * rand(0.22, 0.34), yL = rand(380, 520), yR = rand(380, 520);
+      const left = [];
+      for (let x = 0; x < lipL - rampL; x += 20) left.push({ x, y: yL });
+      for (let s = 0.1; s <= 1.0001; s += 0.1) left.push({ x: lipL - rampL * (1 - s), y: yL - riseL * s * s });
+      left.push({ x: lipL + 14, y: yL - riseL + 26 }, { x: lipL + 16, y: H + 40 });
+      const right = [{ x: lipR - 16, y: H + 40 }, { x: lipR - 14, y: yR - riseR + 26 }];
+      for (let s = 0; s <= 1.0001; s += 0.1) right.push({ x: lipR + rampR * s, y: yR - riseR * (1 - s) * (1 - s) });
+      for (let x = lipR + rampR + 20; x < W; x += 20) right.push({ x, y: yR });
+      right.push({ x: W, y: yR });
+      addLand(left); addLand(right);
+      if (Math.random() < 0.4) addSlab(mid + rand(-40, 40), rand(150, 280), rand(120, 180), rand(-0.15, 0.15));
+      return setSpawns(surfaceSpawn(left, 100, lipL - rampL - 40, 0.05, false), surfaceSpawn(right, lipR + rampR + 40, W - 100, 0.05, false));
+  } },
+  { id: 'windmill', name: 'Windmill', floor: 1, floorKind: 'hills', walls: 0.5, movers: 0.25, build() {              // two small side islands and a big spinning windmill between them
+      const a = addBlob({ x: rand(170, 260), y: rand(380, 520) }, rand(100, 140), rand(35, 55), { pw: 0.7 });
+      const b = addBlob({ x: rand(1020, 1110), y: rand(380, 520) }, rand(100, 140), rand(35, 55), { pw: 0.7 });
+      if (!setSpawns(topSpawn(a), topSpawn(b))) return false;
+      return addRotorRandom({ x: [560, 720], y: [240, 380], len: [280, 380], arms: () => pick([1, 2]), speed: [0.5, 1.1] });
+  } }
+];
+
+function buildLevel(only) {              // only: rebuild this level type (used when a car would have started inside the ground)
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const choices = LEVELS.filter(l => l.id !== lastLevelId);                 // never the same level type twice in a row
+    const def = only ? LEVELS.find(l => l.id === only) : forceLevelId ? LEVELS.find(l => l.id === forceLevelId) : pick(choices);
+    Composite.clear(engine.world, false);
+    L = newLevel(def);
+    if (Math.random() < (def.floor || 0)) addFloor(def.floorKind);      // decorations first, so later placement keeps clear of them
+    if (Math.random() < (def.walls || 0)) addWalls();
+    if (def.build()) {
+      if (Math.random() < (def.movers || 0)) addMovers();
+      if (Math.random() < (def.crumble || 0)) addCrumbling();
+      if (!def.bare) addSurfaces();
+      lastLevelId = def.id; return;
+    }
+  }
+  // Last resort: the simplest level, which cannot fail.
+  Composite.clear(engine.world, false);
+  L = newLevel(LEVELS[0]);
+  LEVELS[0].build(); lastLevelId = 'bowl';
+}
+
+/* ---------- car construction ---------- */
+// Options: scale (wheel size), headScale, carScale (the whole car: teensy cars), square (square wheels), trailer ('caravan' or 'bomb').
+function buildCar(id, P0, ang, o = {}) {
+  if (o.threeWheel) return buildCar3(id, P0, ang);
+  const { scale = 1, headScale = 1, carScale: K = 1, square = false, trailer = null } = o;
+  const def = CARS[id], d = def.dir;
+  const filter = { group: def.group };           // parts of one car, and anything it tows, never collide with each other
+  const k = v => v * K;                          // design units -> world units
+
+  const chassis = Bodies.rectangle(0, 0, k(104), k(20), { friction: 0.2, density: 0.0025, label: 'chassis' });
+  // A giant head sits on the same seat (its bottom stays where a normal head's did) and weighs only twice as much,
+  // so it is bigger and easier to bump but does not make the car hopelessly top-heavy.
+  const headR = HEAD_R * headScale, headY = -10 - headR;                   // design units
+  const head = Bodies.circle(0, k(headY), k(headR), { friction: 0.1, density: 0.0008 * (headScale > 1 ? 2 / (headScale * headScale) : 1), label: 'head' });
+  head.isHead = true; head.owner = id;
+  // Bonnet and boot rise above the wheel tops, so an upside-down car rests on them rather than on its wheels.
+  const bonnet = Bodies.rectangle(k(46 * d), k(-3), k(32), k(26), { friction: 0.2, density: 0.0015, label: 'bonnet' });
+  const boot = Bodies.rectangle(k(-46 * d), k(-3), k(32), k(26), { friction: 0.2, density: 0.0015, label: 'boot' });
+  for (const part of [chassis, head, bonnet, boot]) part.collisionFilter = filter;
+
+  const body = Body.create({ parts: [chassis, head, bonnet, boot], collisionFilter: filter });
+  // Compound body's origin is its centre of gravity; remember where the design centre sits relative to it.
+  const off = { x: -body.position.x, y: -body.position.y };
+
+  // A square wheel's side is 0.88 of a round wheel's diameter/2 either way, but its corners reach further than its sides.
+  const Rd = WHEEL_R * scale, half = square ? 0.88 * Rd : Rd, reach = square ? half * Math.SQRT2 : Rd;
+  const wy = Math.max(WHEEL_Y, reach - 8);                       // wheel tops stay below the bonnet however big or square the wheels are
+  const cs = Math.cos(ang), sn = Math.sin(ang);
+  const lift = k(wy + half) - (WHEEL_R + WHEEL_Y);               // the spawn height was worked out for standard wheels on a standard car
+  const P = { x: P0.x + sn * lift, y: P0.y - cs * lift };
+
+  // spawn lying along the terrain
+  Body.setAngle(body, ang);
+  Body.setPosition(body, { x: P.x - (cs * off.x - sn * off.y), y: P.y - (sn * off.x + cs * off.y) });
+
+  const wheels = [], axles = [];
+  for (const wx of [44 * d, -44 * d]) {
+    const pos = { x: P.x + cs * k(wx) - sn * k(wy), y: P.y + sn * k(wx) + cs * k(wy) };
+    const props = {
+      // Matter uses the larger static friction of the two bodies, so the wheels' own value must be tiny or ice could never
+      // be slippery; normal terrain still supplies its own 10, so grip on ordinary ground is unchanged.
+      friction: 2.5, frictionStatic: 0.004, restitution: 0.05, density: 0.004 / (scale * scale), frictionAir: 0.004,   // same mass whatever the size
+      collisionFilter: filter, label: 'wheel'
+    };
+    const w = square ? Bodies.rectangle(pos.x, pos.y, 2 * k(half), 2 * k(half), { ...props, angle: ang, chamfer: { radius: k(3) } })
+                     : Bodies.circle(pos.x, pos.y, k(Rd), props);
+    axles.push(Constraint.create({
+      // Matter measures pointA in the body's orientation at creation time, so rotate it to the spawn slope.
+      // The axle is a spring (stiffness below 1) so the car squashes on landing.
+      bodyA: body, pointA: { x: cs * (k(wx) + off.x) - sn * (k(wy) + off.y), y: sn * (k(wx) + off.x) + cs * (k(wy) + off.y) },
+      bodyB: w, pointB: { x: 0, y: 0 }, length: 0, stiffness: suspStiffness(TUNE.suspension), damping: 0.2
+    }));
+    wheels.push(w);
+  }
+  Composite.add(engine.world, [body, ...wheels, ...axles]);
+  const car = { id, def, dir: d, body, bodies: [body], wheelHalves: wheels.map(() => body), head, wheels, axles, off, wheelR: k(half), headR: k(headR), headY, headScale, carScale: K, square,
+                torqueMul: scale * scale * Math.pow(K, 3.4), trailer: null, facing: d, flipX: d };
+  if (trailer) car.trailer = buildTrailer(car, trailer, P, ang, filter);
+  return car;
+}
+
+// A three-wheeler: a long car in two halves joined by a hinge over the middle wheel, with a wheel at each end.
+// The halves are mirror images, so it is the same car whichever way it faces. A spring (see BEND) keeps the joint
+// nearly straight and stops it bending more than a little.
+const BEND = { max: 0.35, k: 2, limitK: 40, damp: 40 };
+function buildCar3(id, P0, ang) {
+  const def = CARS[id], d = def.dir, filter = { group: def.group };
+  const headY = -10 - HEAD_R;
+  const mk = (x, y, w, h, label, density) => Bodies.rectangle(x, y, w, h, { friction: 0.2, density, label });
+  const head = Bodies.circle(0, headY, HEAD_R, { friction: 0.1, density: 0.0008, label: 'head' });
+  head.isHead = true; head.owner = id;
+  const left = [mk(-48, 0, 96, 20, 'chassis', 0.0025), mk(-82, -3, 32, 26, 'boot', 0.0015), head];
+  const right = [mk(48, 0, 96, 20, 'chassis', 0.0025), mk(82, -3, 32, 26, 'bonnet', 0.0015)];
+  for (const p of [...left, ...right]) p.collisionFilter = filter;
+  const A = Body.create({ parts: left, collisionFilter: filter }), B2 = Body.create({ parts: right, collisionFilter: filter });
+  const offA = { x: -A.position.x, y: -A.position.y }, offB = { x: -B2.position.x, y: -B2.position.y };   // the joint (design origin) relative to each half's centre of gravity
+  const cs = Math.cos(ang), sn = Math.sin(ang), rot = (x, y) => ({ x: cs * x - sn * y, y: sn * x + cs * y });
+  for (const [b, off] of [[A, offA], [B2, offB]]) { Body.setAngle(b, ang); const r = rot(off.x, off.y); Body.setPosition(b, { x: P0.x - r.x, y: P0.y - r.y }); }
+  const wheels = [], axles = [], wheelHalves = [], wy = WHEEL_Y;
+  for (const [wx, half, off] of [[-84, A, offA], [0, A, offA], [84, B2, offB]]) {       // rear, middle (at the joint) and front wheels
+    const pos = { x: P0.x + cs * wx - sn * wy, y: P0.y + sn * wx + cs * wy };
+    const w = Bodies.circle(pos.x, pos.y, WHEEL_R, { friction: 2.5, frictionStatic: 0.004, restitution: 0.05, density: 0.004, frictionAir: 0.004, collisionFilter: filter, label: 'wheel' });
+    axles.push(Constraint.create({ bodyA: half, pointA: rot(wx + off.x, wy + off.y), bodyB: w, pointB: { x: 0, y: 0 }, length: 0, stiffness: suspStiffness(TUNE.suspension), damping: 0.2 }));
+    wheels.push(w); wheelHalves.push(half);
+  }
+  const hinge = Constraint.create({ bodyA: A, pointA: rot(offA.x, offA.y), bodyB: B2, pointB: rot(offB.x, offB.y), length: 0, stiffness: 1, damping: 0.1 });
+  Composite.add(engine.world, [A, B2, ...wheels, ...axles, hinge]);
+  return { id, def, dir: d, body: A, body2: B2, bodies: [A, B2], wheelHalves, head, wheels, axles, hinge, off: offA, off2: offB,
+           wheelR: WHEEL_R, headR: HEAD_R, headY, headScale: 1, carScale: 1, square: false, torqueMul: 1, trailer: null, facing: d, flipX: d };
+}
+// The middle of a car (the joint, for a three-wheeler): used for camera framing, pick-ups, blasts and the out-of-arena test.
+function centreOf(c) {
+  if (!c.body2) return c.body.position;
+  return { x: (c.body.position.x + c.body2.position.x) / 2, y: (c.body.position.y + c.body2.position.y) / 2 };
+}
+
+// A trailer towed behind the car on a stiff tow bar: a caravan (a box on two wheels) or a flatbed carrying a bomb.
+// Everything is placed in the car's design coordinates, at the spawn pose, so it starts neatly in line with the car.
+function buildTrailer(car, kind, P, ang, filter) {
+  const d = car.dir, cs = Math.cos(ang), sn = Math.sin(ang), caravan = kind === 'caravan';
+  const world = (x, y) => ({ x: P.x + cs * x - sn * y, y: P.y + sn * x + cs * y });
+  const rot = (x, y) => ({ x: cs * x - sn * y, y: sn * x + cs * y });
+  const cx = (caravan ? -124 : -122) * d, cy = caravan ? -7 : 18;                           // trailer centre; its wheels end up level with the car's
+  const hitchLocal = caravan ? { x: 52 * d, y: 15 } : { x: 50 * d, y: -10 };               // where the tow bar meets the trailer
+  const wheelDefs = caravan ? [[-30, 36, 13], [30, 36, 13]] : [[-34, 13, 11], [34, 13, 11]];
+  const parts = caravan
+    ? [Bodies.rectangle(0, 0, 104, 56, { friction: 0.3, density: 0.0008, label: 'caravan' })]
+    : [Bodies.rectangle(0, 0, 100, 8, { friction: 0.6, density: 0.002, label: 'trailer' }),
+       Bodies.rectangle(-47, -12, 6, 28, { friction: 0.6, density: 0.002, label: 'trailer' }),
+       Bodies.rectangle(47, -12, 6, 28, { friction: 0.6, density: 0.002, label: 'trailer' })];
+  for (const p of parts) p.collisionFilter = filter;
+  const tb = parts.length > 1 ? Body.create({ parts, collisionFilter: filter }) : parts[0];
+  const off = { x: -tb.position.x, y: -tb.position.y };          // where the trailer's design origin sits relative to its centre of gravity
+  const w0 = world(cx, cy), r0 = rot(off.x, off.y);
+  Body.setAngle(tb, ang);
+  Body.setPosition(tb, { x: w0.x - r0.x, y: w0.y - r0.y });
+  tb.trailerOf = car.id; for (const p of tb.parts) p.trailerOf = car.id;
+
+  const wheels = [], cons = [];
+  for (const [lx, ly, r] of wheelDefs) {
+    const wp = world(cx + lx, cy + ly);
+    const w = Bodies.circle(wp.x, wp.y, r, { friction: 1.5, frictionStatic: 0.004, restitution: 0.05, density: 0.003, frictionAir: 0.004, collisionFilter: filter, label: 'twheel' });
+    w.trailerOf = car.id;
+    wheels.push(w);
+    cons.push(Constraint.create({ bodyA: tb, pointA: rot(lx + off.x, ly + off.y), bodyB: w, pointB: { x: 0, y: 0 }, length: 0, stiffness: 1, damping: 0.05 }));
+  }
+  const hitch = Constraint.create({
+    bodyA: car.body, pointA: rot(-62 * d + car.off.x, 8 + car.off.y),
+    bodyB: tb, pointB: rot(hitchLocal.x + off.x, hitchLocal.y + off.y), length: 10, stiffness: 1, damping: 0.05
+  });
+  let bomb = null;
+  if (!caravan) {                                                // a bomb resting in the flatbed
+    const bp = world(cx, 1);
+    bomb = Bodies.circle(bp.x, bp.y, 13, { friction: 0.3, density: 0.003, restitution: 0.55, frictionAir: 0.001, label: 'bomb' });
+    bomb.isBomb = true;
+  }
+  Composite.add(engine.world, [tb, ...wheels, ...cons, hitch, ...(bomb ? [bomb] : [])]);
+  return { kind, body: tb, off, wheels, wheelR: wheelDefs[0][2], cons, hitch, bomb, lit: null, exploded: false, attached: true, dir: d };
+}
+
+/* ---------- rounds ---------- */
+const gravityMul = () => (roundMod && roundMod.gravityMul) || 1;
+function applyGravity() { engine.gravity.scale = TUNE.gravity * gravityMul(); }
+function makeSlippery() {                          // storm: every ordinary bit of ground gets slick (ice patches stay icier still)
+  for (const b of Composite.allBodies(engine.world)) if (b.label === 'terrain' && b.isStatic && !b.surface) { b.friction = 0.3; b.frictionStatic = 0.3; }
+}
+// Every body that belongs to a car, including anything it tows.
+const partsOf = b => b.parts.length > 1 ? b.parts.slice(1) : [b];
+function carBodies(c) {
+  const out = [...c.bodies.flatMap(partsOf), ...c.wheels];
+  if (c.trailer) out.push(...partsOf(c.trailer.body), ...c.trailer.wheels, ...(c.trailer.bomb ? [c.trailer.bomb] : []));
+  return out;
+}
+const groundBodies = () => Composite.allBodies(engine.world).filter(b => b.label === 'terrain');
+// A trailer must have ground under its wheels at the start, or it would hang over an edge and drag the car.
+function trailersUnsupported() {
+  const solids = groundBodies();
+  return Object.values(cars).some(c => c.trailer && c.trailer.wheels.some(w =>
+    Matter.Query.region(solids, { min: { x: w.position.x - 3, y: w.position.y + c.trailer.wheelR }, max: { x: w.position.x + 3, y: w.position.y + c.trailer.wheelR + 55 } }).length === 0));
+}
+// Does any part of either car (or its trailer) overlap the ground, an island, a rotor or a platform?
+function carsOverlapTerrain() {
+  const solids = groundBodies();
+  return Object.values(cars).some(c => carBodies(c).some(part => Matter.Query.collides(part, solids).length > 0)) || trailersUnsupported();
+}
+const removeCar = c => Composite.remove(engine.world, [...c.bodies, ...c.wheels, ...c.axles, ...(c.hinge ? [c.hinge] : []), ...(c.trailer ? [c.trailer.body, ...c.trailer.wheels, ...c.trailer.cons, c.trailer.hitch, ...(c.trailer.bomb ? [c.trailer.bomb] : [])] : [])]);
+function newRound() {
+  losers.clear();
+  particles = []; marks = [];
+  slow = null; timeScale = 1; shake = 0; overInfo = null; pendingWinner = null;
+  sd = null; waterY = WATER_Y;
+  fadeIn = celebrate ? { color: CARS[celebrate.id].color, start: clock } : null;   // fade back from the winner's colour
+  celebrate = null;
+  roundNo++;
+  roundMod = null; wind = null;
+  if (forceModId) roundMod = { ...ROUND_MODS.find(m => m.id === forceModId) };          // (for testing)
+  else if (roundNo >= nextPickupRound) { roundMod = { ...pick(ROUND_MODS) }; nextPickupRound = roundNo + randInt(3, 5); }
+  if (roundMod && roundMod.id === 'wind') { wind = { dir: pick([-1, 1]) }; roundMod.name += wind.dir > 0 ? ' >>>' : ' <<<'; }
+  applyGravity();
+  const opts = {
+    scale: roundMod && roundMod.wheelScale || 1, headScale: roundMod && roundMod.headScale || 1, carScale: roundMod && roundMod.carScale || 1,
+    square: !!roundMod && roundMod.id === 'square', threeWheel: !!roundMod && roundMod.id === 'three', trailer: roundMod ? ({ caravan: 'caravan', bomb: 'bomb' })[roundMod.id] || null : null
+  };
+  trailerLen = opts.trailer ? 180 : 0; spawnK = opts.carScale;
+  spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : [44, -44];
+  const prevLast = lastLevelId;
+  for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
+    buildLevel(attempt ? L.id : null);
+    if (!L.bare && Math.random() < 0.3) addPickups();     // power-ups on about one round in three (never in the bare circle)
+    if (roundMod && roundMod.id === 'storm') makeSlippery();
+    cars = {
+      blue: buildCar('blue', L.spawn.blue.P, L.spawn.blue.ang, opts),
+      red: buildCar('red', L.spawn.red.P, L.spawn.red.ang, opts)
+    };
+    if (!carsOverlapTerrain()) break;
+    rebuilds++;
+    lastLevelId = prevLast;                               // the rejected level does not count as the one just played
+  }
+  resetCamera();
+  state = 'ready';
+  readyUntil = clock + 1200;
+  banner = { title: 'Get ready!', sub: L.name + (L.extras.length ? ' - ' + L.extras.join(', ') : ''), tag: roundMod ? roundMod.name : '' };
+  const ln = document.getElementById('levelName'); if (ln) ln.textContent = L.name;
+  acc = 0;
+  if (roundMod) sfx.special();                              // a fanfare for a special round
+}
+
+function lose(id, kind) {
+  if (state !== 'playing' || losers.has(id)) return;
+  losers.set(id, REASONS[kind](CARS[id].name));
+  if (kind === 'head') sfx.bump(cars[id].head.position.x);
+  if (kind === 'head' || kind === 'bomb') {    // sparks fly from the damaged head, which turns red
+    const h = cars[id].head.position;
+    spawnSparks(h.x, h.y);
+    cars[id].hurt = true;
+    cars[id].sparkUntil = clock + 1400;
+    shake = Math.max(shake, 16);
+  }
+}
+
+function resolveRound() {
+  if (state !== 'playing' || losers.size === 0) return;
+  state = 'over';
+  overAt = clock;
+  const bumped = [...losers.keys()].find(id => cars[id].hurt) || null;
+  if (bumped) slow = { start: clock, ms: 1500 };                    // slow motion on a head bump
+  // The sequence after a knockout: a live aftermath (in slow motion for a head bump), then the colour fade, then the next round.
+  overInfo = { focusId: bumped, fadeStart: overAt + END.afterMs };
+  overInfo.endAt = overInfo.fadeStart + END.fadeMs;
+  if (losers.size === 1) {
+    const [loserId, why] = [...losers][0];
+    const winner = loserId === 'blue' ? 'red' : 'blue';
+    scores[winner]++;
+    pendingWinner = winner;                                         // the colour fade starts after the aftermath
+    banner = { title: `${CARS[winner].name} wins!`, sub: why, color: '#fff', tag: '' };
+    document.getElementById(winner === 'blue' ? 'sBlue' : 'sRed').textContent = scores[winner];
+    if (scores[winner] >= MATCH_POINTS) { matchWinner = winner; banner.sub = (why ? why + '. ' : '') + `${CARS[winner].name} wins the match!`; }
+    sfx.wah();
+  } else {
+    banner = { title: 'Draw!', sub: 'Both players lost', color: '#fff', tag: '' };
+  }
+}
+const overPhase = now => !overInfo || now < overInfo.fadeStart ? 'after' : 'fade';
+
+// Bouncy tyres: Matter's own restitution is soaked up by the axles, so when a wheel lands on the terrain the whole
+// car's velocity into the surface is reflected, scaled by TUNE.tireBounce. Landings also kick up dust, shake the
+// screen and make the passenger grimace.
+function onLanding(pair) {
+  const a = pair.bodyA, b = pair.bodyB;
+  const ground = a.label === 'terrain' ? a : b.label === 'terrain' ? b : null;
+  const wheel = ground === a ? b : a;
+  if (!ground || wheel.label !== 'wheel') return;
+  const car = Object.values(cars).find(c => c.wheels.includes(wheel));
+  if (!car) return;
+  let nx = pair.collision.normal.x, ny = pair.collision.normal.y;
+  const hit = (pair.collision.supports && pair.collision.supports[0]) || ground.position;
+  if (nx * (wheel.position.x - hit.x) + ny * (wheel.position.y - hit.y) < 0) { nx = -nx; ny = -ny; }
+  const bodies = [...car.bodies, ...car.wheels];
+  // Inside a collision event `.velocity` still holds the raw per-step value (half of what setVelocity expects), so read
+  // velocities with getVelocity, which always returns px per 16.7 ms: the same units setVelocity takes.
+  const vel = new Map(bodies.map(bd => [bd, Body.getVelocity(bd)]));
+  const into = bd => vel.get(bd).x * nx + vel.get(bd).y * ny;      // negative when moving into the ground
+  const impact = Math.max(...bodies.map(bd => -into(bd)));         // speed into the ground
+  const surface = ground.surface || 'normal';
+  if (impact > lastImpact) lastImpact = impact;
+  sfx.landing(impact, hit.x);
+  if (impact > 6.5 && (car.airTime || 0) > 150) breakTrailer(car);   // coming down from a real jump or drop (not a wheelie slap) snaps a caravan off
+  for (const bd of bodies) {                                       // reflect the speed into the ground, keep the speed along it
+    const into_ = into(bd);
+    if (into_ < -TUNE.bounceMinSpeed) {
+      const k = -(1 + TUNE.tireBounce) * into_, v = vel.get(bd);
+      Body.setVelocity(bd, { x: v.x + nx * k, y: v.y + ny * k });
+    }
+  }
+  // impact is in px per 16.7 ms: a 60 px drop lands at about 6, a 120 px drop at 9, a 300 px drop at 14
+  if (impact > 5) spawnDust(hit.x, hit.y, Math.min(26, Math.round(5 + impact * 1.3)), surface, { speed: [40, 120 + impact * 10] });
+  if (impact > 8) shake = Math.min(18, shake + (impact - 8) * 1.2);
+  if (impact > 11) car.grimaceUntil = clock + 700;
+}
+
+Events.on(engine, 'collisionStart', e => {
+  for (const pair of e.pairs) {
+    onLanding(pair);
+    onTrailerHit(pair);
+    if (pair.bodyA.isHead) headHit(pair.bodyA.owner);
+    if (pair.bodyB.isHead) headHit(pair.bodyB.owner);
+  }
+});
+Events.on(engine, 'collisionActive', e => {    // a head still touching something after its shield's grace period
+  for (const pair of e.pairs) for (const b of [pair.bodyA, pair.bodyB]) {
+    const c = b.isHead && cars[b.owner];
+    if (c && !c.shield && clock > (c.invulnUntil || 0)) lose(b.owner, 'head');
+  }
+});
+
+// Which cars (and which wheels, on what ground) were touching the terrain on the previous step.
+function scanContacts() {
+  const touching = new Set(), wheelGround = new Map(), crumbleHits = new Set();
+  for (const pair of engine.pairs.list) {
+    if (!pair.isActive) continue;
+    const a = pair.bodyA, b = pair.bodyB;
+    if (a.label !== 'terrain' && b.label !== 'terrain') continue;
+    const g = a.label === 'terrain' ? a : b, other = g === a ? b : a;
+    for (const id in cars) {
+      const c = cars[id];
+      if (c.bodies.includes(other.parent)) touching.add(id);
+      else if (c.wheels.includes(other)) { touching.add(id); wheelGround.set(other, g); }
+      else continue;
+      if (g.slab) crumbleHits.add(g.slab);
+    }
+  }
+  return { touching, wheelGround, crumbleHits };
+}
+
+function startSuddenDeath() {
+  sd = { kind: pick(['water', 'walls']), start: clock, inset: 12, bannerUntil: clock + 2800, bodies: [] };
+  sfx.siren();
+  if (sd.kind === 'walls') {
+    for (const x of [-32, W + 32]) {
+      const b = Bodies.rectangle(x, H / 2, 64, H * 3, { ...TERRAIN_PROPS });
+      Body.setMass(b, 1e6); Body.setInertia(b, Infinity);
+      Composite.add(engine.world, b);
+      sd.bodies.push(b);
+    }
+  }
+}
+
+Events.on(engine, 'beforeUpdate', () => {
+  for (const r of L.rotors) {                  // keep each rotor pinned to its pivot, spinning at a constant rate
+    Body.setPosition(r.body, r.pos);
+    Body.setVelocity(r.body, { x: 0, y: 0 });
+    Body.setAngularVelocity(r.body, r.w / 60);
+  }
+  if (sd && state !== 'ready') {               // sudden death: the water rises, or the walls close in
+    if (sd.kind === 'water') { if (waterY > SUDDEN.waterMin) waterY -= SUDDEN.waterRise * STEP / 1000; }
+    else {
+      const moving = sd.inset < SUDDEN.wallMax;
+      if (moving) sd.inset += SUDDEN.wallSpeed * STEP / 1000;
+      const v = moving ? SUDDEN.wallSpeed / 60 : 0;
+      Body.setPosition(sd.bodies[0], { x: sd.inset - 32, y: H / 2 }); Body.setVelocity(sd.bodies[0], { x: v, y: 0 });
+      Body.setPosition(sd.bodies[1], { x: W - sd.inset + 32, y: H / 2 }); Body.setVelocity(sd.bodies[1], { x: -v, y: 0 });
+    }
+  }
+  if (wind && state !== 'ready') {             // gale: a steady, gusting push on every part of both cars
+    const gust = WIND_ACCEL * (0.75 + 0.25 * Math.sin(clock / 1100)) * wind.dir;
+    for (const id in cars) for (const b of [...cars[id].bodies, ...cars[id].wheels]) Body.applyForce(b, b.position, { x: b.mass * gust, y: 0 });
+  }
+  if (state !== 'ready') L.time += STEP / 1000;
+  for (const m of L.movers) placeMover(m, L.time);          // moving platforms follow their paths
+  touchInfo = scanContacts();
+  const touching = touchInfo.touching;
+  for (const it of L.items) {                  // crumbling slabs: stepped on, they shake, then drop away
+    const cr = it.type === 'slab' && it.crumble;
+    if (!cr) continue;
+    if (cr.state === 'solid' && touchInfo.crumbleHits.has(it)) { cr.state = 'warning'; cr.at = clock + 800; sfx.rumble(it.cx); }
+    else if (cr.state === 'warning' && clock >= cr.at) { cr.state = 'falling'; sfx.crash(it.cx); Body.setStatic(it.body, false); Body.setAngularVelocity(it.body, rand(-0.01, 0.01)); }
+    else if (cr.state === 'falling' && it.body.position.y > H + 300) { cr.state = 'gone'; Composite.remove(engine.world, it.body); }
+  }
+  for (const id in cars) {
+    const c = cars[id];
+    const upright = Math.cos(c.body.angle) > -0.2;                     // springy axles only the right way up; rigid when inverted so the wheels cannot sag onto the ground
+    for (const k of c.axles) k.stiffness = upright ? suspStiffness(TUNE.suspension) : 1;
+    if (c.trailer && c.trailer.kind === 'caravan' && c.trailer.attached) {                  // a tow bar under heavy strain snaps
+      const A = Constraint.pointAWorld(c.trailer.hitch), B2 = Constraint.pointBWorld(c.trailer.hitch);
+      if (Math.hypot(A.x - B2.x, A.y - B2.y) > 22) breakTrailer(c);
+    }
+    if (c.body2) {                                                      // the three-wheeler's joint: a spring that keeps it nearly straight, much stiffer past the limit
+      let rel = c.body2.angle - c.body.angle; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+      const over = Math.max(0, Math.abs(rel) - BEND.max) * Math.sign(rel);
+      const tq = -(BEND.k * rel + BEND.limitK * over + BEND.damp * (c.body2.angularVelocity - c.body.angularVelocity));
+      c.body2.torque += tq; c.body.torque -= tq;
+    }
+    const dir = aiIds.has(id) ? (state === 'playing' ? c.aiDir || 0 : 0) : (keys.has(c.def.cw) ? 1 : 0) - (keys.has(c.def.acw) ? 1 : 0);   // the computer presses no keys: it just chooses a direction
+    if (dir !== (c.lastDir || 0)) c.throttle = 0;                       // new key press (or direction change): start from zero
+    c.lastDir = dir;
+    if (!c.trailer) {                                                   // the car faces the way it is going: the driver's input, else the way it is rolling
+      if (dir !== 0) c.facing = dir;
+      else { const v = c.body.velocity, a = c.body.angle, vf = v.x * Math.cos(a) + v.y * Math.sin(a); if (vf > 3) c.facing = 1; else if (vf < -3) c.facing = -1; }
+    }
+    c.throttle = dir !== 0 && state === 'playing' ? Math.min(1, (c.throttle || 0) + TUNE.accel * STEP / 1000) : 0;
+    c.airTime = touching.has(id) ? 0 : (c.airTime || 0) + STEP;
+    const airborne = c.airTime > TUNE.airDelay;
+    if (dir !== 0 && state === 'playing' && airborne) {
+      // Fun-flying rule: in mid-air the keys rotate the whole car so you can line up a landing.
+      // TUNE.air: +1 turns the car the way the key points, -1 the opposite way, 0 switches mid-air rotation off.
+      const k = TUNE.air;
+      if (k !== 0 && dir * k * c.body.angularVelocity < TUNE.airMaxSpin * Math.abs(k)) for (const b of c.bodies) b.torque += dir * k * TUNE.airTorque * (c.bodies.length > 1 ? 1.5 : 1) / c.bodies.length;
+    } else if (dir !== 0 && state === 'playing') {
+      for (const [wi, w] of c.wheels.entries()) {
+        const boosted = clock < (c.boostUntil || 0);
+        if (dir * w.angularVelocity < TUNE.maxSpin * (boosted ? 1.4 : 1)) {
+          const t = dir * TUNE.torque * c.throttle * c.torqueMul * (boosted ? 1.8 : 1);
+          w.torque += t;
+          c.wheelHalves[wi].torque -= t;                       // reaction on the chassis (the half that wheel is on): this is what lifts the nose
+        }
+      }
+    } else {
+      for (const w of c.wheels) Body.setAngularVelocity(w, w.angularVelocity * (1 - TUNE.brake));   // idle rolling resistance (0 = free-rolling)
+    }
+    // sticky mud: any wheel on mud drags the whole car back
+    if (c.wheels.some(w => (touchInfo.wheelGround.get(w) || {}).surface === 'mud')) {
+      for (const b of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(b); Body.setVelocity(b, { x: v.x * 0.985, y: v.y * 0.985 }); }
+      for (const w of c.wheels) Body.setAngularVelocity(w, w.angularVelocity * 0.96);
+    }
+    // water drag
+    for (const b of [...c.bodies, ...c.wheels]) {
+      if (b.position.y > waterY) {
+        Body.setVelocity(b, { x: b.velocity.x * 0.99, y: b.velocity.y * 0.99 });
+        Body.setAngularVelocity(b, b.angularVelocity * 0.99);
+      }
+    }
+  }
+});
+
+function checkRules() {
+  if (state !== 'playing') return;
+  for (const id in cars) {
+    const c = cars[id], p = centreOf(c);
+    if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) lose(id, 'out');
+    if (c.head.position.y + c.headR > waterY) lose(id, 'water');
+  }
+  resolveRound();
+}
+
+/* ---------- occasional extras: crumbling slabs, moving platforms, power-ups ---------- */
+// Crumbling slabs: stepped on, they shake for 0.8 s, then drop away.
+function addCrumbling() {
+  const slabs = L.items.filter(it => it.type === 'slab' && !nearSpawn(it.cx, it.cy, it.len / 2 + 120)).sort(() => Math.random() - 0.5);
+  let n = 0;
+  for (const s of slabs) { if (n >= randInt(1, 2)) break; s.crumble = { state: 'solid' }; n++; }
+  if (n) L.extras.push('crumbling slab');
+}
+// Moving platforms: a slab that slides or bobs along a straight path. Like the rotors it is a heavy body that is
+// placed and given its velocity every step, so it carries cars along with it.
+function placeMover(m, time) {
+  const sn = Math.sin(m.w * time + m.phase), v = Math.cos(m.w * time + m.phase) * m.w;
+  Body.setPosition(m.body, { x: m.base.x + m.ax * sn, y: m.base.y + m.ay * sn });
+  Body.setVelocity(m.body, { x: m.ax * v / 60, y: m.ay * v / 60 });
+}
+function addMovers() {
+  const want = randInt(1, 2);
+  let n = 0;
+  for (let i = 0; i < 200 && n < want; i++) {
+    const len = rand(150, 210), horiz = Math.random() < 0.6, amp = horiz ? rand(90, 160) : rand(60, 110), c = { x: rand(250, 1030), y: rand(200, 480) };
+    const ax = horiz ? amp : 0, ay = horiz ? 0 : amp;
+    const swept = [-1, -0.5, 0, 0.5, 1].flatMap(t => slabPts(c.x + ax * t, c.y + ay * t, len, 0));      // everywhere the platform will be
+    if (swept.some(p => p.x < 40 || p.x > W - 40 || p.y < 100 || p.y > WATER_Y - 80 || nearSpawn(p.x, p.y, 100) || !freeAir(p.x, p.y))) continue;
+    if (!clearOf(swept, 85)) continue;
+    if (L.rotors.some(r => swept.some(p => Math.hypot(p.x - r.pos.x, p.y - r.pos.y) < r.len / 2 + 60))) continue;
+    if (L.movers.some(m => Math.hypot(m.base.x - c.x, m.base.y - c.y) < 260)) continue;
+    const body = Bodies.rectangle(c.x, c.y, len, 16, { ...TERRAIN_PROPS });
+    Body.setMass(body, 1e6); Body.setInertia(body, Infinity);
+    Composite.add(engine.world, body);
+    const m = { body, base: c, ax, ay, w: rand(0.5, 0.9), phase: rand(0, 6.28), len };
+    L.movers.push(m); L.items.push({ type: 'mover', m });
+    placeMover(m, 0);
+    n++;
+  }
+  if (n) L.extras.push('moving platform');
+}
+// Power-ups: a few floating orbs, boost (a burst of speed, then 2.5 s of extra power and top speed) or shield
+// (absorbs the next head bump). Taken ones do not come back that round.
+function addPickups() {
+  const want = randInt(2, 4), spots = [];
+  for (let i = 0; i < 300 && spots.length < want; i++) {
+    const q = pick(L.samples), x = q.x, y = q.y - 70;
+    if (x < 90 || x > W - 90 || y < 90 || y > WATER_Y - 60) continue;
+    if (!freeAir(x, y) || L.samples.some(sm => Math.hypot(sm.x - x, sm.y - y) < 48)) continue;
+    if (nearSpawn(x, y, 170) || spots.some(sp => Math.hypot(sp.x - x, sp.y - y) < 200)) continue;
+    if (L.rotors.some(r => Math.hypot(r.pos.x - x, r.pos.y - y) < r.len / 2 + 40)) continue;
+    spots.push({ x, y, kind: pick(['boost', 'shield']), taken: false });
+  }
+  if (spots.length) { L.pickups = spots; L.extras.push('power-ups'); }
+}
+function collectPickups() {
+  for (const p of L.pickups) {
+    if (p.taken) continue;
+    for (const id in cars) {
+      const c = cars[id];
+      if (Math.hypot(centreOf(c).x - p.x, centreOf(c).y - p.y) > (c.body2 ? 110 : 72) * c.carScale && Math.hypot(c.head.position.x - p.x, c.head.position.y - p.y) > 44 * c.carScale) continue;
+      p.taken = true;
+      sfx.chime(p.kind, p.x);
+      if (p.kind === 'boost') {
+        c.boostUntil = clock + 2500;
+        const a = c.body.angle, fx = Math.cos(a) * c.facing, fy = Math.sin(a) * c.facing;       // along the car's nose
+        for (const bd of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(bd); Body.setVelocity(bd, { x: v.x + fx * 6, y: v.y + fy * 6 }); }
+        spawnDust(p.x, p.y, 14, 'gold', { speed: [80, 260], size: [4, 9] });
+      } else {
+        c.shield = true;
+        spawnDust(p.x, p.y, 14, 'shield', { speed: [60, 200], size: [4, 9] });
+      }
+      shake = Math.min(18, shake + 3);
+      break;
+    }
+  }
+}
+function emitFlames(c) {                       // boost: a jet of flame out of the back
+  const a = c.body.angle, rx = -Math.cos(a) * c.facing, ry = -Math.sin(a) * c.facing;
+  for (let i = 0; i < 3; i++) {
+    const sp = rand(120, 380), life = rand(0.18, 0.4), j = rand(-0.35, 0.35), cj = Math.cos(j), sj = Math.sin(j);
+    particles.push({ type: 'spark', x: c.body.position.x + rx * 64, y: c.body.position.y + ry * 64 + 6, vx: (rx * cj - ry * sj) * sp, vy: (rx * sj + ry * cj) * sp, life, max: life, color: pick(['#fff1a8', '#ffd23f', '#ff9f1c', '#ff6b1c']) });
+  }
+}
+function emitWeather() {
+  if (wind) for (let i = 0; i < 3; i++) {
+    const life = rand(0.5, 1.1);
+    particles.push({ type: 'gust', x: rand(-50, W + 50), y: rand(40, WATER_Y), vx: wind.dir * rand(650, 950), vy: 0, len: rand(50, 110), life, max: life });
+  }
+  if (roundMod && roundMod.id === 'storm') for (let i = 0; i < 9; i++) {
+    const life = rand(0.6, 0.9);
+    particles.push({ type: 'rain', x: rand(-100, W + 100), y: rand(-40, 200), vx: -160, vy: 1000, life, max: life });
+  }
+}
+// A head hit normally ends the round, but a shield absorbs one (with a 1.2 s grace period afterwards).
+function headHit(id) {
+  const c = cars[id];
+  if (clock < (c.invulnUntil || 0)) return;                    // still in the grace period after a shield popped
+  if (c.shield) {
+    c.shield = false; c.invulnUntil = clock + 1200;
+    sfx.pop(c.head.position.x);
+    spawnDust(c.head.position.x, c.head.position.y, 16, 'shield', { speed: [60, 200], size: [4, 8] });
+    shake = Math.max(shake, 7);
+    return;
+  }
+  lose(id, 'head');
+}
+
+/* ---------- towing: caravans that snap off, and bomb trailers ---------- */
+const BOMB_FUSE = 3000, BOMB_RADIUS = 240, BOMB_KILL = 100;       // fuse in ms; blast radius and head-kill radius in px
+function breakTrailer(c) {                     // the caravan's tow bar snaps and the caravan blows up
+  const T = c.trailer;
+  if (!T || T.kind !== 'caravan' || !T.attached) return;
+  const at = Constraint.pointAWorld(T.hitch), cx = T.body.position.x, cy = T.body.position.y;
+  Composite.remove(engine.world, T.hitch);
+  T.attached = false;
+  sfx.snap(at.x);
+  particles.push({ type: 'text', x: at.x, y: at.y - 20, vx: 0, vy: -70, text: 'SNAP!', color: '#ffd23f', life: 1, max: 1 });
+  spawnDust(at.x, at.y, 12, 'gold', { speed: [60, 220], size: [3, 7] });
+  Composite.remove(engine.world, [T.body, ...T.wheels, ...T.cons]);       // the caravan is blown to bits
+  T.gone = true;
+  sfx.boom(cx);
+  blastAt(cx, cy, 190, 60, 0.7, 12);
+}
+function onTrailerHit(pair) {                  // a caravan that takes a hard knock breaks off
+  const a = pair.bodyA, b = pair.bodyB;
+  for (const x of [a, b]) {
+    const c = x.trailerOf && cars[x.trailerOf];
+    if (!c || !c.trailer || c.trailer.kind !== 'caravan' || !c.trailer.attached) continue;
+    const o = x === a ? b : a, va = Body.getVelocity(x.parent), vb = Body.getVelocity(o.parent), n = pair.collision.normal;
+    if (Math.abs((va.x - vb.x) * n.x + (va.y - vb.y) * n.y) > 6.5) breakTrailer(c);
+  }
+}
+// A bomb that bounces out of its trailer is lit; three seconds later it explodes.
+function updateBombs(now) {
+  for (const id in cars) {
+    const T = cars[id].trailer;
+    if (!T || T.kind !== 'bomb' || T.exploded) continue;
+    if (T.lit === null) {
+      const tb = T.body, dx = T.bomb.position.x - tb.position.x, dy = T.bomb.position.y - tb.position.y, c = Math.cos(-tb.angle), sn = Math.sin(-tb.angle);
+      const lx = dx * c - dy * sn, ly = dx * sn + dy * c;                      // the bomb's position in the trailer's own frame
+      if (Math.abs(lx) > 62 || ly < -34 || ly > 45) { T.lit = now; T.lastTick = 4; sfx.fuse(T.bomb.position.x); }   // out of the flatbed: lit
+    } else {
+      const left = Math.ceil((BOMB_FUSE - (now - T.lit)) / 1000);
+      if (left !== T.lastTick && left > 0) { T.lastTick = left; sfx.tick(left, T.bomb.position.x); }                  // a tick each second, double-speed at the end
+      if (now - T.lit >= BOMB_FUSE) explodeBomb(id);
+    }
+  }
+}
+function explodeBomb(ownerId) {
+  const T = cars[ownerId].trailer, x = T.bomb.position.x, y = T.bomb.position.y;
+  T.exploded = true;
+  sfx.boom(x);
+  Composite.remove(engine.world, T.bomb);
+  blastAt(x, y, BOMB_RADIUS, BOMB_KILL, 1, 18);
+}
+// An explosion: flash, sparks and dust, a shove for any car within `radius` (harder the nearer), and any head within `killR` of it is blown up.
+function blastAt(x, y, radius, killR, kickScale, shakeAmount) {
+  particles.push({ type: 'blast', x, y, life: 0.55, max: 0.55 });
+  spawnSparks(x, y); spawnSparks(x, y);
+  spawnDust(x, y, 24, 'normal', { spread: 1.6, speed: [120, 420], size: [8, 16] });
+  particles.push({ type: 'text', x, y: y - 30, vx: 0, vy: -60, text: 'BOOM!', color: '#ffd23f', life: 1.1, max: 1.1 });
+  shake = Math.max(shake, shakeAmount);
+  for (const id in cars) {
+    const c = cars[id], cc = centreOf(c), dx = cc.x - x, dy = cc.y - y, dist = Math.hypot(dx, dy) || 1;
+    if (dist < radius) {
+      const kick = (4 + 18 * (1 - dist / radius)) * kickScale, ux = dx / dist, uy = dy / dist - 0.35;
+      for (const bd of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(bd); Body.setVelocity(bd, { x: v.x + ux * kick, y: v.y + uy * kick }); }
+    }
+    if (Math.hypot(c.head.position.x - x, c.head.position.y - y) < killR + c.headR) lose(id, 'bomb');
+  }
+}
+
+/* ---------- the computer player ---------- */
+// It works the same controls as a person: each "thought" it picks -1, 0 or +1 (anti-clockwise, nothing, clockwise), just like holding a key.
+// think = how often it decides (ms), duty = how much of the time it holds the throttle, mistake = chance of a random choice.
+const AI_LEVELS = {
+  easy:   { think: 380, duty: 0.55, mistake: 0.12, pickups: false },
+  medium: { think: 200, duty: 0.8, mistake: 0.04, pickups: true },
+  hard:   { think: 90, duty: 1, mistake: 0, pickups: true }
+};
+let aiIds = new Set(), aiLevel = 'medium';
+let menuOn = true, matchWinner = null;       // the start menu is showing; and who has won the match (first to MATCH_POINTS)
+const MATCH_POINTS = 5;
+const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
+// Is there safe ground ahead of a car, in the given screen direction? (not a cliff, and not a pit down at the water)
+function groundAhead(c, sd) {
+  const cm = centreOf(c), x = cm.x + sd * (90 + Math.abs(c.body.velocity.x) * 8);
+  const hits = Matter.Query.region(groundBodies(), { min: { x: x - 6, y: cm.y }, max: { x: x + 6, y: cm.y + 170 } });
+  if (hits.length > 0 && Math.min(...hits.map(b => b.bounds.min.y)) < waterY - 45) return true;
+  const far = Matter.Query.region(groundBodies(), { min: { x: Math.min(cm.x + sd * 120, cm.x + sd * 700), y: cm.y - 260 }, max: { x: Math.max(cm.x + sd * 120, cm.x + sd * 700), y: waterY - 45 } });
+  return far.length > 0;                                                       // a gap is fine if there is somewhere to land on the far side
+}
+function aiThink(c, opp, lv, now) {
+  if (Math.random() < lv.mistake) return pick([-1, 0, 1]);
+  const a = wrapAngle(c.body.angle), cm = centreOf(c), om = centreOf(opp);
+  if ((c.airTime || 0) > TUNE.airDelay) {                                    // in the air: line up for a level landing
+    const err = a + 6 * c.body.angularVelocity;
+    return TUNE.air === 0 || Math.abs(err) < 0.12 ? 0 : -Math.sign(err) * Math.sign(TUNE.air);
+  }
+  if (Math.cos(a) < 0.25) return Math.sin(now / 260) > 0 ? 1 : -1;          // upside down or on its side: rock back and forth to try to flip over
+  const xs = c.wheels.map(w => w.position).sort((p, q) => p.x - q.x);
+  if (Math.abs(wrapAngle(a - Math.atan2(xs[xs.length - 1].y - xs[0].y, xs[xs.length - 1].x - xs[0].x))) > 0.5) return 0;   // a wheelie or nose dive is building: ease off
+  let tx = om.x;                                                               // aim for the other car, or a power-up that is close
+  if (lv.pickups) { let best = 260; for (const p of L.pickups) if (!p.taken && Math.abs(p.x - cm.x) < best && Math.abs(p.y - cm.y) < 140) { best = Math.abs(p.x - cm.x); tx = p.x; } }
+  const sd = Math.sign(tx - cm.x) || 1;
+  if (!groundAhead(c, sd)) return c.body.velocity.x * sd > 1.5 ? -sd : 0;     // a cliff or pit ahead: stop, or back off if still rolling towards it
+  if ((now / 250) % 1 > lv.duty) return 0;                                     // easier levels pulse the throttle instead of holding it
+  return sd;
+}
+function aiUpdate(now) {
+  for (const id of aiIds) {
+    const c = cars[id], opp = cars[id === 'red' ? 'blue' : 'red'], lv = AI_LEVELS[aiLevel];
+    if (!c || !opp || now < (c.aiNext || 0)) continue;
+    c.aiNext = now + lv.think * (0.8 + Math.random() * 0.4);
+    c.aiDir = aiThink(c, opp, lv, now);
+  }
+}
+function setMode(m) {                                                          // 'two', 'ai-easy', 'ai-medium' or 'ai-hard'
+  const ai = m.startsWith('ai-');
+  aiIds = ai ? new Set(['red']) : new Set();
+  if (ai) aiLevel = m.slice(3);
+  const red = document.getElementById('redName'), help = document.getElementById('helpRed');
+  if (red) red.textContent = ai ? 'Red (computer)' : 'Red';
+  if (help) help.innerHTML = ai ? '<span style="color:#ff5a5a">Red</span>: the computer' : '<span style="color:#ff5a5a">Red</span>: <b>,</b> anti-clockwise, <b>.</b> clockwise';
+}
+
+function showMenu(msg, sub) {
+  menuOn = true;
+  const m = document.getElementById('menuMsg');
+  m.innerHTML = msg ? msg + (sub ? '<small>' + sub + '</small>' : '') : '';
+  document.getElementById('menu').classList.remove('hidden');
+}
+function startMatch(mode) {
+  setMode(mode);
+  scores.blue = scores.red = 0; matchWinner = null;
+  document.getElementById('sBlue').textContent = 0; document.getElementById('sRed').textContent = 0;
+  document.getElementById('menu').classList.add('hidden');
+  menuOn = false; last = performance.now();
+  newRound();
+}
+function endMatch() {
+  const w = matchWinner, name = w === 'blue' ? 'Blue' : (aiIds.has('red') ? 'The computer (red)' : 'Red');
+  showMenu(`<span style="color:${w === 'blue' ? '#4d8dff' : '#ff5a5a'}">${name} wins the match!</span>`, `${scores.blue} - ${scores.red}. Pick a game to play again.`);
+}
+
+/* ---------- input ---------- */
+const GAME_KEYS = new Set(['KeyZ', 'KeyX', 'Comma', 'Period']);
+addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) { keys.add(e.code); e.preventDefault(); } });
+addEventListener('keyup', e => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+/* ---------- camera ---------- */
+// The view is a 16:9 window onto the 1280x720 world. It never shows more than the whole world.
+const CAM = { zoomMax: 2.4, targetMargin: 170, hardMargin: 70, zoomInRate: 0.5, zoomOutRate: 6, panRate: 3 };
+const cam = { x: W / 2, y: H / 2, z: 1 };
+function resetCamera() { cam.x = W / 2; cam.y = H / 2; cam.z = 1; }
+function carBounds() {
+  const ps = Object.values(cars).map(centreOf);
+  return { l: Math.min(...ps.map(p => p.x)), r: Math.max(...ps.map(p => p.x)), t: Math.min(...ps.map(p => p.y)), b: Math.max(...ps.map(p => p.y)) };
+}
+function fitZoom(bb, m) { return Math.min(W / (bb.r - bb.l + 2 * m), H / (bb.b - bb.t + 2 * m)); }
+function updateCamera(dt) {
+  const bb = carBounds();
+  const over = state === 'over';
+  if (slow && overInfo && overInfo.focusId) {         // slow-motion head bump: punch in on the damaged head
+    const h = cars[overInfo.focusId].head.position, kz = 1 - Math.exp(-3 * dt), kp = 1 - Math.exp(-6 * dt);
+    cam.z += (2.2 - cam.z) * kz;
+    cam.x += (h.x - cam.x) * kp; cam.y += (h.y - cam.y) * kp;
+    const hw = W / (2 * cam.z), hh = H / (2 * cam.z);
+    cam.x = Math.max(hw, Math.min(W - hw, cam.x)); cam.y = Math.max(hh, Math.min(H - hh, cam.y));
+    return;
+  }
+  // Slowly zoom in when the cars are close; zoom out quickly when they separate.
+  const target = over ? 1 : Math.max(1, Math.min(CAM.zoomMax, fitZoom(bb, CAM.targetMargin)));
+  const rate = target < cam.z ? CAM.zoomOutRate : CAM.zoomInRate;
+  cam.z += (target - cam.z) * (1 - Math.exp(-rate * dt));
+  // Hard guarantee: never zoomed in further than keeps both cars in view.
+  cam.z = Math.min(cam.z, Math.max(1, fitZoom(bb, CAM.hardMargin)));
+  const k = 1 - Math.exp(-CAM.panRate * dt);
+  cam.x += ((over ? W / 2 : (bb.l + bb.r) / 2) - cam.x) * k;
+  cam.y += ((over ? H / 2 : (bb.t + bb.b) / 2) - cam.y) * k;
+  const hw = W / (2 * cam.z), hh = H / (2 * cam.z), m = CAM.hardMargin;
+  if (bb.r > cam.x + hw - m) cam.x = bb.r - hw + m;
+  if (bb.l < cam.x - hw + m) cam.x = bb.l + hw - m;
+  if (bb.b > cam.y + hh - m) cam.y = bb.b - hh + m;
+  if (bb.t < cam.y - hh + m) cam.y = bb.t + hh - m;
+  cam.x = Math.max(hw, Math.min(W - hw, cam.x));      // stay inside the world: no wasted space outside it
+  cam.y = Math.max(hh, Math.min(H - hh, cam.y));
+}
+
+/* ---------- passenger faces ---------- */
+const faceOf = c => (c.hurt || clock < (c.grimaceUntil || 0)) ? 'grimace' : (c.airTime || 0) > 300 ? 'wide' : 'normal';
+// Drawn with the head centre as the origin, facing +x.
+function drawFace(face) {
+  ctx.save(); ctx.translate(-10, -20);
+  ctx.strokeStyle = '#222'; ctx.fillStyle = '#222'; ctx.lineCap = 'round';
+  if (face === 'wide') {                                          // wide-eyed in the air
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(5, -1.5, 3.8, 0, 7); ctx.fill();
+    ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(6.2, -1.5, 1.7, 0, 7); ctx.fill();
+    ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(1, -7); ctx.lineTo(8, -8.2); ctx.stroke();
+    ctx.fillStyle = '#5a1a1a'; ctx.beginPath(); ctx.ellipse(5, 5, 2, 3, 0, 0, 7); ctx.fill();
+  } else if (face === 'grimace') {                                // gritted teeth after a heavy landing
+    ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(1.5, -3.8); ctx.lineTo(6, -1.6); ctx.lineTo(1.5, 0.2); ctx.stroke();
+    ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(0, -6.5); ctx.lineTo(8, -4.5); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.fillRect(0.5, 2.3, 8.5, 3.8);
+    ctx.lineWidth = 1; ctx.strokeRect(0.5, 2.3, 8.5, 3.8);
+    ctx.beginPath(); ctx.moveTo(3.3, 2.3); ctx.lineTo(3.3, 6.1); ctx.moveTo(6.1, 2.3); ctx.lineTo(6.1, 6.1); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(5.5, -1.5, 1.8, 0, 7); ctx.fill();
+    ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(4, 3, 2.8, 0.3, Math.PI - 0.3); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* ---------- drawing ---------- */
+function tracePath(pts) {
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+}
+function skyGradient() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#6ec6ff'); g.addColorStop(1, '#d7f0ff');
+  return g;
+}
+function drawBackground() {
+  ctx.fillStyle = skyGradient(); ctx.fillRect(0, 0, W, H);
+  if (L.bg === 'ring') {
+    ctx.fillStyle = '#6b4528'; ctx.fillRect(0, 0, W, H);        // ground behind the ring
+    tracePath(L.ringPts);
+    ctx.fillStyle = skyGradient(); ctx.fill();
+  }
+}
+function strokeGrass(pts, closed) {
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  if (closed) ctx.closePath();
+  ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 7; ctx.stroke();
+}
+function drawPatch(it) {
+  const { a, b, d, u, T, inset } = it, len = Math.hypot(b.x - a.x, b.y - a.y);
+  const at = (s, h) => ({ x: a.x + d.x * s + u.x * h, y: a.y + d.y * s + u.y * h });
+  const poly = [at(0, 0), at(len, 0), at(len - inset, T), at(inset, T)];
+  ctx.beginPath(); ctx.moveTo(poly[0].x, poly[0].y); for (const p of poly.slice(1)) ctx.lineTo(p.x, p.y); ctx.closePath();
+  ctx.fillStyle = it.kind === 'ice' ? '#bfe8ff' : '#4b2e17'; ctx.fill();
+  ctx.strokeStyle = it.kind === 'ice' ? '#ffffff' : '#2d1a0b'; ctx.lineWidth = 2; ctx.stroke();
+  if (it.kind === 'ice') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5;
+    for (let s = 22; s < len - 18; s += 34) { const p = at(s, T - 2), q = at(s + 12, T - 2); ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); }
+  } else {
+    ctx.fillStyle = '#6a4325';
+    for (let s = 14; s < len - 10; s += 22) { const p = at(s, T - 1); ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, 7); ctx.fill(); }
+  }
+}
+function drawTerrain() {
+  ctx.lineJoin = 'round';
+  for (const it of L.items) {
+    if (it.type === 'slab') {
+      const cr = it.crumble;
+      if (cr && cr.state === 'gone') continue;
+      const b = cr ? it.body : null, shaking = cr && cr.state === 'warning';
+      ctx.save();
+      ctx.translate((b ? b.position.x : it.cx) + (shaking ? rand(-1.8, 1.8) : 0), (b ? b.position.y : it.cy) + (shaking ? rand(-1.2, 1.2) : 0));
+      ctx.rotate(b ? b.angle : it.ang);
+      ctx.fillStyle = cr ? '#8d6b45' : '#6b4528'; ctx.fillRect(-it.len / 2, -it.th / 2, it.len, it.th);
+      ctx.fillStyle = cr ? '#8bb04a' : '#4caf50'; ctx.fillRect(-it.len / 2, -it.th / 2, it.len, 6);
+      if (cr) {                                                    // cracks
+        ctx.strokeStyle = shaking ? '#ff9f1a' : '#3a2815'; ctx.lineWidth = 2; ctx.beginPath();
+        for (let x = -it.len / 2 + 22; x < it.len / 2 - 10; x += 38) { ctx.moveTo(x, -it.th / 2 + 2); ctx.lineTo(x + 5, 0); ctx.lineTo(x - 3, it.th / 2 - 1); }
+        ctx.stroke();
+      }
+      ctx.restore();
+    } else if (it.type === 'blob') {
+      tracePath(it.pts); ctx.fillStyle = '#6b4528'; ctx.fill();
+      strokeGrass(it.pts, true);
+    } else if (it.type === 'ring') {
+      strokeGrass(it.pts, true);
+    } else if (it.type === 'land') {
+      const p = it.pts;
+      ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y);
+      for (let i = 1; i < p.length; i++) ctx.lineTo(p[i].x, p[i].y);
+      ctx.lineTo(p[p.length - 1].x, H + 60); ctx.lineTo(p[0].x, H + 60); ctx.closePath();
+      ctx.fillStyle = '#6b4528'; ctx.fill();
+      strokeGrass(p, false);
+    } else if (it.type === 'wall') {
+      ctx.fillStyle = '#6b4528'; ctx.fillRect(-60, -10, 72, H + 20); ctx.fillRect(W - 12, -10, 72, H + 20);
+      ctx.fillStyle = '#4caf50'; ctx.fillRect(6, -10, 6, H + 20); ctx.fillRect(W - 12, -10, 6, H + 20);
+    } else if (it.type === 'mover') {
+      const m = it.m;
+      ctx.save(); ctx.translate(m.body.position.x, m.body.position.y);
+      ctx.fillStyle = '#5b6672'; ctx.fillRect(-m.len / 2, -8, m.len, 16);
+      ctx.fillStyle = '#9aa7b4'; ctx.fillRect(-m.len / 2, -8, m.len, 4);
+      for (let x = -m.len / 2, k = 0; x < m.len / 2 - 12; x += 24, k++) { ctx.fillStyle = k % 2 ? '#ffd23f' : '#222'; ctx.fillRect(x, 3, 12, 5); }
+      ctx.restore();
+    } else if (it.type === 'patch') {
+      drawPatch(it);
+    } else if (it.type === 'rotor') {
+      ctx.save();
+      ctx.translate(it.body.position.x, it.body.position.y); ctx.rotate(it.body.angle);
+      for (let i = 0; i < it.arms; i++) {
+        ctx.save(); ctx.rotate(i * Math.PI / it.arms);
+        ctx.fillStyle = '#c0392b'; ctx.fillRect(-it.len / 2, -it.th / 2, it.len, it.th);
+        ctx.fillStyle = '#f5f5f5';
+        for (let x = -it.len / 2 + 10; x < it.len / 2 - 20; x += 40) ctx.fillRect(x, -it.th / 2, 20, it.th);
+        ctx.restore();
+      }
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 7); ctx.fill();
+      ctx.fillStyle = '#999'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+function drawPickups(now) {
+  for (const p of L.pickups) {
+    if (p.taken) continue;
+    const y = p.y + Math.sin(now / 300 + p.x) * 5, boost = p.kind === 'boost';
+    ctx.save(); ctx.translate(p.x, y);
+    const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 32);
+    g.addColorStop(0, boost ? 'rgba(255,170,40,0.55)' : 'rgba(90,210,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 32, 0, 7); ctx.fill();
+    ctx.fillStyle = boost ? '#ff9f1a' : '#3fb6ff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, 17, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath();
+    if (boost) { ctx.moveTo(3, -11); ctx.lineTo(-6, 2); ctx.lineTo(-1, 2); ctx.lineTo(-4, 11); ctx.lineTo(7, -3); ctx.lineTo(1, -3); }          // lightning bolt
+    else { ctx.moveTo(0, -11); ctx.lineTo(9, -7); ctx.lineTo(8, 3); ctx.lineTo(0, 11); ctx.lineTo(-8, 3); ctx.lineTo(-9, -7); }                    // shield
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+}
+function drawSdWalls(inset) {
+  ctx.fillStyle = '#7a1f1f'; ctx.fillRect(-90, -10, 102 + inset, H + 20); ctx.fillRect(W - 12 - inset, -10, 102 + inset, H + 20);
+  for (let y = -10; y < H + 10; y += 28) {                       // hazard stripes along the closing edges
+    ctx.fillStyle = '#ffd23f'; ctx.fillRect(inset + 2, y, 10, 14); ctx.fillRect(W - 12 - inset, y, 10, 14);
+  }
+}
+function drawWheel(w, r, square) {
+  ctx.save();
+  ctx.translate(w.position.x, w.position.y); ctx.rotate(w.angle);
+  if (square) {                                                 // square wheel: r is half its side
+    ctx.fillStyle = '#1b1b1b'; ctx.fillRect(-r, -r, 2 * r, 2 * r);
+    ctx.fillStyle = '#9aa3ad'; ctx.fillRect(-r * 0.62, -r * 0.62, r * 1.24, r * 1.24);
+    ctx.fillStyle = '#4a525b';
+    for (const sx of [-1, 1]) for (const sy of [-1, 1]) { ctx.beginPath(); ctx.arc(sx * r * 0.38, sy * r * 0.38, r * 0.11, 0, 7); ctx.fill(); }
+  } else {
+    ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9aa3ad'; ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#4a525b'; ctx.lineWidth = 2.5;
+    for (let i = 0; i < 5; i++) {
+      const a = i * Math.PI * 2 / 5;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); ctx.stroke();
+    }
+  }
+  ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawTrailer(c) {
+  const T = c.trailer;
+  if (!T || T.gone) return;
+  for (const w of T.wheels) {
+    ctx.save(); ctx.translate(w.position.x, w.position.y); ctx.rotate(w.angle);
+    ctx.fillStyle = '#1b1b1b'; ctx.beginPath(); ctx.arc(0, 0, T.wheelR, 0, 7); ctx.fill();
+    ctx.fillStyle = '#9aa3ad'; ctx.beginPath(); ctx.arc(0, 0, T.wheelR * 0.55, 0, 7); ctx.fill();
+    ctx.fillStyle = '#333'; ctx.fillRect(-1.5, -T.wheelR * 0.55, 3, T.wheelR * 1.1);       // a spoke, so the wheel visibly turns
+    ctx.restore();
+  }
+  if (T.attached) {                                             // the tow bar
+    const A = Constraint.pointAWorld(T.hitch), B2 = Constraint.pointBWorld(T.hitch);
+    ctx.strokeStyle = '#2b2b2b'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B2.x, B2.y); ctx.stroke();
+  }
+  const b = T.body;
+  ctx.save();
+  ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle); ctx.translate(T.off.x, T.off.y); ctx.scale(T.dir, 1);   // drawn facing the car's way: +x is toward the car
+  if (T.kind === 'caravan') {
+    ctx.fillStyle = '#f4f1e8'; ctx.fillRect(-52, -28, 104, 56);
+    ctx.fillStyle = '#d9d4c3'; ctx.fillRect(-52, -28, 104, 6);                              // roof
+    ctx.fillStyle = c.def.color; ctx.fillRect(-52, 8, 104, 8);                             // stripe in the car's colour
+    ctx.fillStyle = '#9fd3f5'; ctx.fillRect(-4, -18, 32, 18); ctx.strokeStyle = '#8a8574'; ctx.lineWidth = 2; ctx.strokeRect(-4, -18, 32, 18);
+    ctx.fillStyle = '#c9c2a8'; ctx.fillRect(-44, -14, 18, 38);                             // door
+    ctx.fillStyle = '#8a8574'; ctx.fillRect(-30, 4, 3, 4);
+  } else {
+    ctx.fillStyle = '#555'; ctx.fillRect(-50, -4, 100, 8);                                  // flatbed
+    ctx.fillStyle = '#7a7a7a'; ctx.fillRect(-50, -26, 6, 28); ctx.fillRect(44, -26, 6, 28); // end walls
+    ctx.fillStyle = c.def.color; ctx.fillRect(-50, 0, 100, 3);
+  }
+  ctx.restore();
+}
+function drawBomb(c) {
+  const T = c.trailer;
+  if (!T || !T.bomb || T.exploded) return;
+  const b = T.bomb, lit = T.lit !== null, left = lit ? BOMB_FUSE - (clock - T.lit) : BOMB_FUSE;
+  const flash = lit && Math.floor(clock / (left < 1000 ? 70 : 140)) % 2 === 0;
+  ctx.save(); ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle);
+  ctx.fillStyle = flash ? '#b01818' : '#1a1a1a'; ctx.beginPath(); ctx.arc(0, 0, 13, 0, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.28)'; ctx.beginPath(); ctx.arc(-4, -5, 4, 0, 7); ctx.fill();
+  ctx.fillStyle = '#555'; ctx.fillRect(-3, -17, 6, 6);
+  ctx.strokeStyle = '#c9a063'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -17); ctx.quadraticCurveTo(6, -23, 11, -21); ctx.stroke();   // fuse
+  if (lit) { ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(11, -21, 3 + Math.sin(clock / 40) * 1.2, 0, 7); ctx.fill(); }
+  ctx.restore();
+  if (lit && left > 0) {                                        // countdown over the bomb
+    ctx.save(); ctx.textAlign = 'center'; ctx.font = '800 38px "Segoe UI", Arial, sans-serif'; ctx.lineWidth = 7; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    const n = String(Math.ceil(left / 1000));
+    ctx.strokeText(n, b.position.x, b.position.y - 36); ctx.fillStyle = left < 1000 ? '#ff5a5a' : '#fff'; ctx.fillText(n, b.position.x, b.position.y - 36);
+    ctx.restore();
+  }
+}
+// The passenger's head and face, drawn with the transform at the car's design origin.
+function drawHead(c) {
+  ctx.save();
+  ctx.translate(0, c.headY); ctx.scale(c.headScale, c.headScale); ctx.translate(10, 20);   // a normal head is drawn centred on (-10, -20)
+  ctx.fillStyle = c.hurt ? '#e53935' : '#f2c9a0'; ctx.beginPath(); ctx.arc(-10, -20, HEAD_R, 0, 7); ctx.fill();
+  ctx.fillStyle = c.def.dark; ctx.beginPath(); ctx.arc(-10, -20, HEAD_R + 1, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();   // cap
+  drawFace(c.face || faceOf(c));
+  ctx.restore();
+}
+function drawShield(c) {                                         // shield bubble round the head
+  if (!c.shield) return;
+  ctx.fillStyle = 'rgba(120,220,255,0.18)'; ctx.strokeStyle = 'rgba(160,235,255,0.85)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, c.headY, (HEAD_R * c.headScale + 7) * (1 + 0.06 * Math.sin(clock / 120)), 0, 7); ctx.fill(); ctx.stroke();
+}
+function drawCar(c) {
+  if (c.body2) return drawCar3(c);
+  const { body, def } = c;
+  for (const w of c.wheels) drawWheel(w, c.wheelR, c.square);       // drawn first: the bonnet and boot cover the wheel tops
+  ctx.save();
+  ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle);
+  ctx.translate(c.off.x, c.off.y); ctx.scale(c.flipX * c.carScale, c.carScale);
+
+  drawHead(c);                                                   // drawn before the body so the cockpit hides the neck
+
+  // body
+  ctx.fillStyle = def.color;
+  ctx.beginPath();
+  ctx.moveTo(-62, 10); ctx.lineTo(-62, -6); ctx.lineTo(-56, -16); ctx.lineTo(-30, -16); ctx.lineTo(-24, -11);
+  ctx.lineTo(22, -11); ctx.lineTo(28, -15); ctx.lineTo(48, -16); ctx.lineTo(62, -7); ctx.lineTo(62, 10); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = def.dark; ctx.fillRect(-22, -11, 44, 4);                    // cockpit interior
+  ctx.fillStyle = '#fff'; ctx.fillRect(-50, 1, 106, 3);                        // racing stripe
+  ctx.fillStyle = '#ffe066'; ctx.fillRect(56, -4, 6, 6);                      // headlight
+  ctx.fillStyle = '#444'; ctx.fillRect(-60, 4, 4, 4);                         // exhaust
+
+  // windshield
+  ctx.save(); ctx.translate(22, -17); ctx.rotate(-0.4);
+  ctx.fillStyle = 'rgba(190,230,255,0.8)'; ctx.fillRect(-2, -8, 4, 16);
+  ctx.restore();
+  drawShield(c);
+  ctx.restore();
+}
+// The three-wheeler: each half is drawn on its own body so the car visibly bends at the joint.
+function drawCar3(c) {
+  const { body, body2, def } = c;
+  for (const w of c.wheels) drawWheel(w, c.wheelR, false);
+  ctx.save();                                                    // the passenger rides over the joint, on the rear half
+  ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.translate(c.off.x, c.off.y); ctx.scale(c.flipX, 1);
+  drawHead(c);
+  ctx.restore();
+  for (const [half, off, side] of [[body, c.off, -1], [body2, c.off2, 1]]) {
+    ctx.save();
+    ctx.translate(half.position.x, half.position.y); ctx.rotate(half.angle); ctx.translate(off.x, off.y);
+    ctx.scale(side, 1);                                          // draw outwards from the joint: x is the distance from it
+    const nose = side * c.flipX > 0;                             // whichever half is at the front is the nose
+    ctx.fillStyle = def.color; ctx.beginPath();
+    ctx.moveTo(-3, 10); ctx.lineTo(100, 10); ctx.lineTo(100, nose ? -7 : -6); ctx.lineTo(nose ? 88 : 94, -16); ctx.lineTo(40, -16); ctx.lineTo(34, -11); ctx.lineTo(-3, -11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = def.dark; ctx.fillRect(-3, -11, 31, 4);                  // cockpit interior
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 1, 96, 3);                       // racing stripe
+    if (nose) {
+      ctx.fillStyle = '#ffe066'; ctx.fillRect(94, -4, 6, 6);                 // headlight
+      ctx.save(); ctx.translate(30, -17); ctx.rotate(-0.4); ctx.fillStyle = 'rgba(190,230,255,0.8)'; ctx.fillRect(-2, -8, 4, 16); ctx.restore();   // windshield
+    } else { ctx.fillStyle = '#444'; ctx.fillRect(96, 4, 4, 4); }            // exhaust
+    ctx.restore();
+  }
+  ctx.save();                                                    // the joint cover hides the wedge where the halves meet
+  ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.translate(c.off.x, c.off.y);
+  ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = '#8a8a8a'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 7); ctx.fill();
+  drawShield(c);
+  ctx.restore();
+}
+function drawWater(now, y) {
+  ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, y);
+  for (let x = 0; x <= W; x += 10) ctx.lineTo(x, y + Math.sin(x * 0.03 + now / 400) * 3);
+  ctx.lineTo(W, H); ctx.closePath();
+  const g = ctx.createLinearGradient(0, y, 0, H);
+  g.addColorStop(0, 'rgba(30,120,220,0.85)'); g.addColorStop(1, 'rgba(10,50,140,0.95)');
+  ctx.fillStyle = g; ctx.fill();
+}
+function outlinedText(text, y, font, fill, outline = 10) {
+  ctx.font = font; ctx.lineWidth = outline; ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.strokeText(text, W / 2, y);
+  ctx.fillStyle = fill; ctx.fillText(text, W / 2, y);
+}
+function drawBanner(now) {
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.lineJoin = 'round';
+  if (state === 'playing') {
+    if (sd && now < sd.bannerUntil) {
+      outlinedText('SUDDEN DEATH!', 150, '800 72px "Segoe UI", Arial, sans-serif', '#ff4d4d');
+      outlinedText(sd.kind === 'water' ? 'The water is rising!' : 'The walls are closing in!', 195, '600 28px "Segoe UI", Arial, sans-serif', '#fff', 6);
+    }
+    ctx.restore();
+    return;
+  }
+  outlinedText(banner.title, 150, '800 72px "Segoe UI", Arial, sans-serif', banner.color || '#fff');
+  if (banner.sub) outlinedText(banner.sub, 195, '600 28px "Segoe UI", Arial, sans-serif', '#fff', 6);
+  if (banner.tag) outlinedText(banner.tag, 240, '800 34px "Segoe UI", Arial, sans-serif', '#ffd23f', 7);
+  ctx.restore();
+}
+// Win celebration: the whole screen fades to the winner's colour; at the next round it fades back.
+const FADE_MS = 1200, FADE_MAX = 0.8, FADE_IN_MS = 700;
+function drawColourFade(now) {
+  let alpha = 0, color = null;
+  if (celebrate) {
+    const k = Math.min(1, (now - celebrate.start) / FADE_MS);
+    alpha = FADE_MAX * k * k * (3 - 2 * k); color = CARS[celebrate.id].color;
+  } else if (fadeIn) {
+    const k = (now - fadeIn.start) / FADE_IN_MS;
+    if (k >= 1) fadeIn = null;
+    else { alpha = FADE_MAX * (1 - k * k * (3 - 2 * k)); color = fadeIn.color; }
+  }
+  if (!color) return;
+  ctx.save(); ctx.globalAlpha = alpha; ctx.fillStyle = color; ctx.fillRect(0, 0, W, H); ctx.restore();
+}
+function drawSuddenVignette(now) {
+  if (!sd || state === 'ready') return;
+  const pulse = 0.25 + 0.15 * Math.sin(now / 220);
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.95);
+  g.addColorStop(0, 'rgba(255,0,0,0)'); g.addColorStop(1, `rgba(255,30,30,${pulse.toFixed(3)})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+function draw(now) {
+  ctx.save();
+  if (shake > 0.3) ctx.translate(rand(-shake, shake), rand(-shake, shake));
+  ctx.scale(cam.z, cam.z);
+  ctx.translate(W / (2 * cam.z) - cam.x, H / (2 * cam.z) - cam.y);
+  drawBackground();
+  drawMarks(now);
+  drawTerrain();
+  drawPickups(now);
+  for (const id in cars) drawTrailer(cars[id]);
+  for (const id in cars) drawCar(cars[id]);
+  for (const id in cars) drawBomb(cars[id]);
+  ctx.save();
+  if (L.bg === 'ring') { tracePath(L.ringPts); ctx.clip(); }
+  drawWater(now, waterY);
+  ctx.restore();
+  if (sd && sd.kind === 'walls') drawSdWalls(sd.inset);
+  drawParticles();
+  ctx.restore();
+  if (roundMod && roundMod.id === 'storm') { ctx.fillStyle = 'rgba(15,25,55,0.28)'; ctx.fillRect(0, 0, W, H); }   // dark storm sky
+  drawColourFade(now);
+  drawSuddenVignette(now);
+  drawBanner(now);
+}
+
+/* ---------- motion effects: dust, skid marks and speed lines ---------- */
+function emitMotionFx() {
+  for (const id in cars) {
+    const c = cars[id], v = c.body.velocity, speed = Math.hypot(v.x, v.y);
+    if (speed > 10.5) {                                  // speed lines: streaks left hanging in the air behind a fast car
+      const ux = v.x / speed, uy = v.y / speed;
+      for (let i = speed > 13 ? 2 : 1; i > 0; i--) {
+        const off = rand(-45, 45), life = rand(0.18, 0.3);
+        particles.push({ type: 'streak', x: c.body.position.x - uy * off, y: c.body.position.y + ux * off, dx: ux, dy: uy, len: 40 + (speed - 10.5) * 12, life, max: life });
+      }
+    }
+    const a = c.body.angle, fwd = { x: Math.cos(a), y: Math.sin(a) }, down = { x: -Math.sin(a), y: Math.cos(a) };
+    const vf = v.x * fwd.x + v.y * fwd.y;                // speed along the car
+    for (const w of c.wheels) {
+      const g = touchInfo.wheelGround.get(w);
+      if (!g) { w._markPos = null; continue; }
+      const surface = g.surface || 'normal';
+      const slip = Math.abs(w.angularVelocity * c.wheelR - vf);     // wheel surface speed against ground speed: spinning or sliding
+      const cp = { x: w.position.x + down.x * c.wheelR, y: w.position.y + down.y * c.wheelR };
+      // Under full throttle the wheels spin faster than the car moves (slip of 8-10), so skid marks need a clearly bigger slip
+      if (slip > 5) {                                    // tyres biting, spinning or sliding: dust
+        if (slip > 9 && w._markPos && Math.hypot(cp.x - w._markPos.x, cp.y - w._markPos.y) < 40)
+          addMark(w._markPos.x, w._markPos.y, cp.x, cp.y, surface === 'ice' ? '255,255,255' : surface === 'mud' ? '40,24,12' : '25,20,15');
+        w._markPos = slip > 9 ? cp : null;
+        spawnDust(cp.x, cp.y, slip > 14 ? 2 : 1, surface, { spread: 0.7, speed: [20, 90], size: [4, 9] });
+      } else {
+        w._markPos = null;
+        if (speed > 7 && Math.random() < 0.3) spawnDust(cp.x, cp.y, 1, surface, { spread: 0.6, speed: [10, 60], size: [4, 8] });
+        else if (surface === 'mud' && speed > 2 && Math.random() < 0.5) spawnDust(cp.x, cp.y, 1, 'mud', { spread: 0.8, speed: [30, 100], size: [3, 7] });
+      }
+    }
+  }
+}
+
+/* ---------- main loop ---------- */
+let last = performance.now(), acc = 0;
+function frame(now, manual) {
+  if (testMode && !manual) return;
+  clock = now;
+  const dt = Math.min(now - last, 50); last = now;
+  if (menuOn) {                                   // the start menu: the game stands still behind it
+    sfx.engines(cars, 'ready'); updateCamera(dt / 1000); draw(now);
+    if (!manual) requestAnimationFrame(frame);
+    return;
+  }
+
+  // slow motion eases back to normal speed over the last half of its duration
+  timeScale = 1;
+  if (slow) {
+    const k = (now - slow.start) / slow.ms;
+    if (k >= 1) slow = null; else timeScale = 0.2 + 0.8 * Math.pow(Math.max(0, (k - 0.5) / 0.5), 2);
+  }
+
+  const phase = state === 'over' ? overPhase(now) : null;
+  if (state === 'playing') aiUpdate(now);
+  if (state === 'ready') {
+    if (now >= readyUntil) { state = 'playing'; roundStart = now; sfx.go(); }
+  } else {
+    acc += dt * timeScale;
+    while (acc >= STEP) { Engine.update(engine, STEP); acc -= STEP; checkRules(); }
+  }
+  if (state === 'playing' && !sd && now - roundStart > SUDDEN.afterMs) startSuddenDeath();
+  if (state === 'playing') collectPickups();
+  if (state === 'over') {
+    if (phase === 'fade' && pendingWinner && !celebrate) { celebrate = { id: pendingWinner, start: now }; sfx.win(); }
+    if (now >= overInfo.endAt) { if (matchWinner) endMatch(); else newRound(); }
+  }
+
+  if (state !== 'ready') {
+    for (const id in cars) {                      // a bumped head keeps showering sparks for a while
+      const c = cars[id];
+      if (c.sparkUntil && now < c.sparkUntil) {
+        for (let i = 0; i < 2; i++) {
+          const a = Math.random() * Math.PI * 2, sp = rand(60, 300), life = rand(0.5, 1.1);
+          particles.push({ type: 'spark', x: c.head.position.x, y: c.head.position.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, life, max: life, color: SPARK_COLORS[(Math.random() * SPARK_COLORS.length) | 0] });
+        }
+      }
+      if (now < (c.boostUntil || 0)) emitFlames(c);
+    }
+    emitMotionFx();
+    emitWeather();
+    updateBombs(now);
+  }
+  sfx.engines(cars, state); sfx.ambient(roundMod && roundMod.id, now); sfx.muffle(timeScale);
+  if (state !== 'ready') for (const id in cars) {                // a splash as a car goes into the water
+    const c = cars[id], wet = c.body.position.y > waterY;
+    if (wet && !c.wasWet) sfx.splash(c.body.position.x);
+    c.wasWet = wet;
+  }
+  for (const id in cars) cars[id].flipX = cars[id].facing;      // turning round is instant: the car simply swaps to face the other way
+  updateParticles(dt * timeScale / 1000);
+  shake *= Math.exp(-7 * dt / 1000);
+  updateCamera(dt / 1000);
+  draw(now);
+  if (!manual) requestAnimationFrame(frame);
+}
+
+/* ---------- tune-up panel ---------- */
+const TUNE_DEFAULTS = { ...TUNE };
+const SLIDERS = [
+  ['tMaxSpin', 'oMaxSpin', 'maxSpin', v => v.toFixed(2)],
+  ['tSusp', 'oSusp', 'suspension', v => v.toFixed(2)]
+];
+const TUNE_KEYS = SLIDERS.map(sl => sl[2]);
+// Saved settings carry a units version. Before version 2 the tyre bounce was applied at half strength (a units bug),
+// so an older saved tyre-bounce value is halved on load to keep the car bouncing exactly as it did when it was tuned.
+const TUNE_UNITS = 2;
+const tuneSnapshot = () => ({ ...Object.fromEntries(TUNE_KEYS.map(k => [k, TUNE[k]])), units: TUNE_UNITS });
+function applyTune(t) {
+  if (!t) return;
+  const old = t.units !== TUNE_UNITS;
+  for (const k of TUNE_KEYS) if (typeof t[k] === 'number' && isFinite(t[k])) TUNE[k] = old && k === 'tireBounce' ? Math.min(1.2, t[k] * 0.5) : t[k];
+}
+let saveTimer = null;
+function saveTune() {
+  const snap = tuneSnapshot();
+  try { localStorage.setItem('carGameTune', JSON.stringify(snap)); } catch (e) { }
+  clearTimeout(saveTimer);                                                 // also keep a copy on the server, shared by every address and browser
+  saveTimer = setTimeout(() => fetch('/api/tune', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snap) }).catch(() => { }), 250);
+}
+function syncTuneUi() {
+  for (const [sid, oid, key, fmt] of SLIDERS) {
+    document.getElementById(sid).value = TUNE[key];
+    document.getElementById(oid).textContent = fmt(TUNE[key]);
+  }
+  applyGravity();
+}
+try { applyTune(JSON.parse(localStorage.getItem('carGameTune') || '{}')); } catch (e) { }
+for (const [sid, oid, key, fmt] of SLIDERS) {
+  document.getElementById(sid).addEventListener('input', e => {
+    TUNE[key] = parseFloat(e.target.value);
+    document.getElementById(oid).textContent = fmt(TUNE[key]);
+    applyGravity();
+    saveTune();
+  });
+}
+for (const b of document.querySelectorAll('#menuBtns button')) b.addEventListener('click', () => { sfx.ensure(); startMatch(b.dataset.mode); });
+document.getElementById('tReset').addEventListener('click', () => { Object.assign(TUNE, TUNE_DEFAULTS); syncTuneUi(); saveTune(); });
+// ---- sound controls
+const muteBtn = document.getElementById('tMute'), volSlider = document.getElementById('tVolume'), volOut = document.getElementById('oVolume');
+function syncSoundUi() { muteBtn.textContent = sfx.muted ? 'Sound off' : 'Sound on'; volSlider.value = sfx.volume; volOut.textContent = Math.round(sfx.volume * 100) + '%'; }
+function toggleMute() { sfx.ensure(); sfx.setMuted(!sfx.muted); syncSoundUi(); }
+muteBtn.addEventListener('click', toggleMute);
+volSlider.addEventListener('input', e => { sfx.ensure(); sfx.setVolume(parseFloat(e.target.value)); syncSoundUi(); });
+addEventListener('keydown', e => { sfx.ensure(); if (e.code === 'KeyM' && !e.repeat && e.target.tagName !== 'INPUT') toggleMute(); });   // any key press unlocks audio; M mutes
+addEventListener('pointerdown', () => sfx.ensure());
+syncSoundUi();
+const nextSel = document.getElementById('nextLevel');
+for (const l of LEVELS) nextSel.add(new Option(l.name, l.id));
+nextSel.addEventListener('change', () => { forceLevelId = nextSel.value || null; nextSel.blur(); });
+syncTuneUi();
+fetch('/api/tune', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(t => { if (t) { applyTune(t); syncTuneUi(); } }).catch(() => { });
+
+window.__game = {
+  get L() { return L; }, LEVELS, setForce(id) { forceLevelId = id; }, TUNE, SUDDEN, END, cam, CAM, updateCamera, engine, newRound, checkRules, frame,
+  start() { state = 'playing'; roundStart = clock; }, manual(on) { testMode = on; },
+  setPickupNext() { nextPickupRound = roundNo + 1; }, setClock(t) { clock = t; last = t; },
+  get cars() { return cars; }, get state() { return state; }, get sd() { return sd; }, get waterY() { return waterY; }, get slow() { return slow; },
+  get overInfo() { return overInfo; }, get roundMod() { return roundMod; }, get wind() { return wind; },
+  respawn(id, P, ang) { removeCar(cars[id]); cars[id] = buildCar(id, P, ang); },
+  drawFace, ctx,
+  startMatch, showMenu, endMatch, get menuOn() { return menuOn; }, get matchWinner() { return matchWinner; }, hideMenu() { menuOn = false; document.getElementById('menu').classList.add('hidden'); },
+  forceMod(id) { forceModId = id; }, sfx, BEND, setMode, setAI(ids, level) { aiIds = new Set(ids); aiLevel = level; }, get aiIds() { return aiIds; },
+  dbg: { buildLevel, buildCar, carsOverlapTerrain, removeCars() { for (const id in cars) removeCar(cars[id]); } },
+  get rebuilds() { return rebuilds; }, get lastImpact() { return lastImpact; }, resetImpact() { lastImpact = 0; }, get particles() { return particles; }, get marks() { return marks; }, get shake() { return shake; }, get celebrate() { return celebrate; }, get fadeIn() { return fadeIn; },
+  scores, keys
+};
+newRound();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
