@@ -98,7 +98,7 @@ const W = 1280, H = 720;
 const WATER_Y = H - 50;
 const HEAD_R = 10, WHEEL_R = 22, WHEEL_Y = 20;   // wheel radius, and how far the axles sit below the car's design centre
 const STEP = 1000 / 120;          // fixed physics step (ms)
-const TUNE = { torque: 0.66, maxSpin: 0.8, accel: 2.4, brake: 0, air: -2, suspension: 0.37, airTorque: 0.525, airMaxSpin: 0.075, airDelay: 80, gravity: 0.00095, tireBounce: 0.39, bounceMinSpeed: 6 };   // wheel drive torque (with equal and opposite reaction on the chassis) and top wheel spin
+const TUNE = { torque: 0.66, maxSpin: 0.9, accel: 2.4, brake: 0, air: -2, suspension: 0.2, airTorque: 0.525, airMaxSpin: 0.075, airDelay: 80, gravity: 0.00095, tireBounce: 0.39, bounceMinSpeed: 6 };   // wheel drive torque (with equal and opposite reaction on the chassis) and top wheel spin
 const SUDDEN = { afterMs: 35000, waterRise: 14, waterMin: 60, wallSpeed: 16, wallMax: 440 };   // sudden death: after this long, the water rises or the walls close in
 const END = { afterMs: 1500, fadeMs: 1500 };                                                  // end of round: a live aftermath, then the colour fade
 // The Suspension slider runs 0 (very soft) to 1 (rigid). Matter solves each axle several times per step, so only a very
@@ -117,7 +117,17 @@ const ROUND_MODS = [
   { id: 'bomb', name: 'BOMB TRAILERS!' },
   { id: 'square', name: 'SQUARE WHEELS!' },
   { id: 'giant', name: 'GIANT CARS!', carScale: 2 },
-  { id: 'three', name: 'BENDY THREE-WHEELERS!' }
+  { id: 'three', name: 'BENDY THREE-WHEELERS!' },
+  { id: 'mirror', name: 'MIRROR MADNESS! CONTROLS REVERSED' },
+  { id: 'drunk', name: 'DIZZY DRIVERS! CONTROLS KEEP FLIPPING' },
+  { id: 'meteor', name: 'METEOR SHOWER!' },
+  { id: 'bouncy', name: 'BOUNCY CASTLE!', gravityMul: 0.6, bounce: 1.15 },
+  { id: 'rocket', name: 'ROCKET FUEL!' },
+  { id: 'beach', name: 'BEACH BALL BONANZA!' },
+  { id: 'stilts', name: 'GIGANTIC WHEELS ON TALL SUSPENSION!', wheelScale: 2.2 },
+  { id: 'wings', name: 'WINGS! HOLD A KEY IN THE AIR TO FLAP' },
+  { id: 'bird', name: 'ANGRY BIRD ON THE LOOSE!' },
+  { id: 'hammer', name: 'HAMMER TIME!  Blue: C   Red: /' }
 ];
 const WIND_ACCEL = 0.0005;        // gale strength (px per ms squared; gravity is about 0.00135)
 
@@ -125,8 +135,8 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 
 const CARS = {
-  blue: { name: 'Blue', color: '#2f7bff', dark: '#1b4fb5', acw: 'KeyZ',   cw: 'KeyX',   group: -1, dir: 1 },
-  red:  { name: 'Red',  color: '#ff3b3b', dark: '#b01f1f', acw: 'Comma', cw: 'Period', group: -2, dir: -1 }
+  blue: { name: 'Blue', color: '#2f7bff', dark: '#1b4fb5', acw: 'KeyZ',   cw: 'KeyX',   hammer: 'KeyC',   group: -1, dir: 1 },
+  red:  { name: 'Red',  color: '#ff3b3b', dark: '#b01f1f', acw: 'Comma', cw: 'Period', hammer: 'Slash', group: -2, dir: -1 }
 };
 const REASONS = {
   water: n => `${n}'s head touched the water`,
@@ -149,6 +159,7 @@ let particles = [], marks = [];
 let waterY = WATER_Y;                                // the water surface; sudden death can raise it
 let sd = null;                                       // sudden death: { kind, start, inset, bodies, bannerUntil }
 let roundNo = 0, nextPickupRound = randInt(3, 5), roundMod = null, wind = null;
+let drunk = null, meteorNext = 0, bird = null;                    // dizzy drivers: { flipped, next }; meteor shower: when the next rock falls
 let shake = 0;                                       // screen shake amplitude in pixels
 let timeScale = 1, slow = null;                      // slow motion: { start, ms }
 let overAt = 0, overInfo = null, pendingWinner = null;   // end-of-round sequence
@@ -372,7 +383,7 @@ const liftGap = () => WHEEL_R + 7 + WHEEL_Y;     // design-centre height above a
 // straights[] (straight stretches that surface patches can sit on), rotors[], ringPts, ringFn, spawn: { blue, red } }
 let L = null;
 let lastLevelId = null, forceLevelId = null;
-const newLevel = def => ({ id: def.id, name: def.name, bg: 'sky', bare: !!def.bare, items: [], samples: [], straights: [], rotors: [], movers: [], pickups: [], time: 0, spawn: null, ringFn: null, ringPts: null, extras: [] });
+const newLevel = def => ({ id: def.id, name: def.name, bg: 'sky', bare: !!def.bare, items: [], samples: [], straights: [], rotors: [], movers: [], pickups: [], props: [], seesaws: [], time: 0, spawn: null, ringFn: null, ringPts: null, extras: [] });
 
 // Is a point in open air (not inside an island, outside the ring, or under the ground)?
 function insidePoly(pts, x, y) {
@@ -624,6 +635,32 @@ function startSlab(id, o = {}) {
   }
   return null;
 }
+// Loose, bouncy things the cars can shove about: ball-pit balls, huge beach balls and falling rocks.
+const BALL_COLOURS = ['#ff4d6d', '#ffd23f', '#3fb6ff', '#7bd957', '#ff9f1a', '#c77dff'];
+function addBall(x, y, r, kind = 'ball', o = {}) {
+  const body = Bodies.circle(x, y, r, { friction: 0.05, frictionStatic: 0.05, restitution: kind === 'rock' ? 0.2 : 0.85, density: kind === 'rock' ? 0.004 : kind === 'beach' ? 0.0004 : 0.0007, frictionAir: kind === 'rock' ? 0 : 0.002, label: 'prop' });
+  body.propKind = kind;
+  Composite.add(engine.world, body);
+  const p = { type: 'ball', kind, body, r, color: pick(BALL_COLOURS), born: clock, life: o.life || 0, gone: false };
+  L.props.push(p); L.items.push(p);
+  return p;
+}
+function addBalls(n, rLo, rHi, yLo, yHi) {
+  for (let i = 0; i < 300 && n > 0; i++) {
+    const r = rand(rLo, rHi), x = rand(120, W - 120), y = rand(yLo, yHi);
+    if (L.samples.some(q => Math.hypot(x - q.x, y - q.y) < r + 40)) continue;
+    if (L.props.some(q => Math.hypot(x - q.body.position.x, y - q.body.position.y) < r + q.r + 6)) continue;
+    addBall(x, y, r); n--;
+  }
+}
+// A seesaw: a heavy plank on a pivot that tips under the cars, held within a tilt limit.
+function addSeesaw(cx, cy, len, maxTilt = 0.3) {
+  const th = 20, body = Bodies.rectangle(cx, cy, len, th, { ...TERRAIN_PROPS, density: 0.004 });
+  Composite.add(engine.world, [body, Constraint.create({ pointA: { x: cx, y: cy }, bodyB: body, pointB: { x: 0, y: 0 }, stiffness: 1, length: 0 })]);
+  L.samples.push(...slabPts(cx, cy, len, 0), ...slabPts(cx, cy + 40, len * 0.8, 0));
+  const it = { type: 'seesaw', body, len, th, cx, cy, max: maxTilt };
+  L.items.push(it); L.seesaws.push(it);
+}
 const addIsland = () => addBlob({ x: CX + rand(-90, 90), y: CY + rand(-60, 50) }, rand(110, 170), rand(35, 60), { pw: 0.7, noise: [0.02, 0.1] });
 
 // A floor across the bottom so a fall is not the end: flat, rolling hills, or flat with water pits to drive out of.
@@ -786,6 +823,30 @@ const LEVELS = [
       const b = addBlob({ x: rand(1020, 1110), y: rand(380, 520) }, rand(100, 140), rand(35, 55), { pw: 0.7 });
       if (!setSpawns(topSpawn(a), topSpawn(b))) return false;
       return addRotorRandom({ x: [560, 720], y: [240, 380], len: [280, 380], arms: () => pick([1, 2]), speed: [0.5, 1.1] });
+  } },
+  { id: 'ballpit', name: 'Ball Pit', floor: 1, floorKind: 'hills', walls: 1, build() {                    // start slabs over a hilly floor, with a heap of bouncy balls to bat about
+      if (!setSpawns(startSlab('blue', { y: [230, 380] }), startSlab('red', { y: [230, 380] }))) return false;
+      addBalls(randInt(7, 10), 26, 50, 60, 260);
+      L.extras.push('bouncy balls');
+      return true;
+  } },
+  { id: 'seesaw', name: 'Seesaw', floor: 0.7, walls: 0.5, movers: 0.15, build() {                       // high start slabs, and a big tipping plank in the middle
+      if (!setSpawns(startSlab('blue', { y: [230, 330], tilt: 0.1 }), startSlab('red', { y: [230, 330], tilt: 0.1 }))) return false;
+      addSeesaw(W / 2 + rand(-40, 40), rand(450, 490), rand(380, 460));
+      return true;
+  } },
+  { id: 'coaster', name: 'Roller Coaster', floor: 0, walls: 1, build() {                              // huge rolling hills right across the screen
+      const base = rand(440, 490), a1 = rand(45, 70), a2 = rand(20, 35), k2 = pick([3, 4]), p1 = rand(0, 6.28), p2 = rand(0, 6.28), pts = [];
+      for (let x = 0; x <= W; x += 16) pts.push({ x, y: Math.max(250, Math.min(H - 60, base + a1 * Math.sin(2 * 2 * Math.PI * x / W + p1) + a2 * Math.sin(k2 * 2 * Math.PI * x / W + p2))) });
+      addLand(pts);
+      return setSpawns(surfaceSpawn(pts, 110, 330, 0.15, false) || surfaceSpawn(pts, 110, 360, 0.3, false) || surfaceSpawn(pts, 110, 400, 0.5, false),
+                       surfaceSpawn(pts, W - 330, W - 110, 0.15, false) || surfaceSpawn(pts, W - 360, W - 110, 0.3, false) || surfaceSpawn(pts, W - 400, W - 110, 0.5, false));
+  } },
+  { id: 'sumo', name: 'Sumo Slab', floor: 0, walls: 0, build() {                                         // one small platform over the water: shove the other car off
+      const len = rand(440, 540) * Math.max(1, spawnK * 0.9, trailerLen ? 1.15 : 1), y = rand(380, 450), th = 26, cx = W / 2;
+      addSlab(cx, y, len, 0, th);
+      const top = slabPts(cx, y - th / 2, len, 0);
+      return setSpawns(surfaceSpawn(top, cx - len / 2 + 50, cx - len / 2 + 190, 0.1, false), surfaceSpawn(top, cx + len / 2 - 190, cx + len / 2 - 50, 0.1, false));
   } }
 ];
 
@@ -836,7 +897,8 @@ function buildCar(id, P0, ang, o = {}) {
 
   // A square wheel's side is 0.88 of a round wheel's diameter/2 either way, but its corners reach further than its sides.
   const Rd = WHEEL_R * scale, half = square ? 0.88 * Rd : Rd, reach = square ? half * Math.SQRT2 : Rd;
-  const wy = Math.max(WHEEL_Y, reach - 8);                       // wheel tops stay below the bonnet however big or square the wheels are
+  const WX = o.tall ? 62 : 44;                                    // tall suspension: a longer wheelbase, and the wheels hang well below the body on struts
+  const wy = o.tall ? Rd + 16 : Math.max(WHEEL_Y, reach - 8);     // wheel tops stay below the bonnet however big or square the wheels are
   const cs = Math.cos(ang), sn = Math.sin(ang);
   const lift = k(wy + half) - (WHEEL_R + WHEEL_Y);               // the spawn height was worked out for standard wheels on a standard car
   const P = { x: P0.x + sn * lift, y: P0.y - cs * lift };
@@ -846,7 +908,7 @@ function buildCar(id, P0, ang, o = {}) {
   Body.setPosition(body, { x: P.x - (cs * off.x - sn * off.y), y: P.y - (sn * off.x + cs * off.y) });
 
   const wheels = [], axles = [];
-  for (const wx of [44 * d, -44 * d]) {
+  for (const wx of [WX * d, -WX * d]) {
     const pos = { x: P.x + cs * k(wx) - sn * k(wy), y: P.y + sn * k(wx) + cs * k(wy) };
     const props = {
       // Matter uses the larger static friction of the two bodies, so the wheels' own value must be tiny or ice could never
@@ -865,7 +927,7 @@ function buildCar(id, P0, ang, o = {}) {
     wheels.push(w);
   }
   Composite.add(engine.world, [body, ...wheels, ...axles]);
-  const car = { id, def, dir: d, body, bodies: [body], wheelHalves: wheels.map(() => body), head, wheels, axles, off, wheelR: k(half), headR: k(headR), headY, headScale, carScale: K, square,
+  const car = { id, def, dir: d, body, bodies: [body], wheelHalves: wheels.map(() => body), head, wheels, axles, off, wheelR: k(half), headR: k(headR), headY, headScale, carScale: K, square, tall: !!o.tall, wxs: WX,
                 torqueMul: scale * scale * Math.pow(K, 3.4), trailer: null, facing: d, flipX: d };
   if (trailer) car.trailer = buildTrailer(car, trailer, P, ang, filter);
   return car;
@@ -951,6 +1013,103 @@ function buildTrailer(car, kind, P, ang, filter) {
 }
 
 /* ---------- rounds ---------- */
+// Hammer time: a big hammer hinged on top of the car. It rests leaning back; the hammer key swings it forward over the nose and back again.
+const HAMMER = { rest: -1.1, reach: 1.5, swing: 15, back: 7 };       // angles from upright (radians, positive = towards the nose); speeds in radians a second
+// The hammer is driven like a rotor: every step it is placed on its pivot at the angle its animation gives, with matching velocities, so it hits hard but never destabilises the car.
+function addHammer(c) {
+  const filter = c.body.collisionFilter;
+  const handle = Bodies.rectangle(0, -45, 8, 90, { friction: 0.3, label: 'hammer' });
+  const head = Bodies.rectangle(0, -95, 44, 30, { friction: 0.3, label: 'hammer' });
+  handle.collisionFilter = filter; head.collisionFilter = filter;
+  const body = Body.create({ parts: [handle, head], collisionFilter: filter });
+  Body.setMass(body, 8); Body.setInertia(body, Infinity);
+  c.hammer = { body, pointB: { x: -body.position.x, y: -body.position.y }, phase: 'rest', cool: 0, r: (c.facing || c.dir || 1) * HAMMER.rest, parts: [handle, head] };
+  Composite.add(engine.world, body);
+  placeHammer(c, 1 / 120);
+}
+function placeHammer(c, dt) {
+  const h = c.hammer, hb = h.body, a = c.body.angle;
+  const ang = a + h.r, pa = Math.cos(a), pb = Math.sin(a), ca = Math.cos(ang), sa = Math.sin(ang);
+  const px = c.off.x, py = c.off.y - 14;                                         // the pivot, on top of the car
+  const pivot = { x: c.body.position.x + pa * px - pb * py, y: c.body.position.y + pb * px + pa * py };
+  const pos = { x: pivot.x - (ca * h.pointB.x - sa * h.pointB.y), y: pivot.y - (sa * h.pointB.x + ca * h.pointB.y) };
+  const old = { x: hb.position.x, y: hb.position.y }, oldAng = hb.angle;
+  Body.setPosition(hb, pos); Body.setAngle(hb, ang);
+  Body.setVelocity(hb, { x: (pos.x - old.x) * 2, y: (pos.y - old.y) * 2 });                 // per 16.7 ms, from the move over one 8.3 ms step
+  Body.setAngularVelocity(hb, (ang - oldAng) * 2);
+}
+function stepHammer(c, id) {
+  const h = c.hammer, f = c.facing || c.dir || 1, dt = STEP / 1000;
+  const swing = aiIds.has(id) ? !!c.aiSwing : keys.has(c.def.hammer);
+  if (h.phase === 'rest') {                                                      // lean back behind the car; if the car turns round the hammer turns over the top
+    const goal = f * HAMMER.rest, d = goal - h.r;
+    h.r += Math.sign(d) * Math.min(Math.abs(d), HAMMER.back * dt);
+    if (swing && state === 'playing' && clock >= h.cool && Math.abs(d) < 0.01) h.phase = 'swing';
+  } else if (h.phase === 'swing') {
+    h.r += f * HAMMER.swing * dt;
+    if (f * h.r >= HAMMER.reach) { h.r = f * HAMMER.reach; h.phase = 'return'; }
+  } else {
+    h.r -= f * HAMMER.back * dt;
+    if (f * h.r <= HAMMER.rest) { h.r = f * HAMMER.rest; h.phase = 'rest'; h.cool = clock + 250; }
+  }
+  placeHammer(c, dt);
+}
+const aiHammer = (c, opp) => Math.hypot(centreOf(c).x - centreOf(opp).x, centreOf(c).y - centreOf(opp).y) < 200;
+
+// A big angry bird that dive-bombs the cars, knocking them about, then flaps away to line up another run.
+function makeBird() { return { x: rand(200, 1080), y: -60, vx: 0, vy: 0, mode: 'cruise', next: clock + 2500, wx: W / 2, wy: 150, wnext: 0, target: null, cool: 0, dir: 1 }; }
+function stepBird(dt) {
+  const b = bird;
+  if (b.mode === 'cruise') {
+    if (clock >= b.wnext) { b.wx = rand(100, W - 100); b.wy = rand(70, 260); b.wnext = clock + rand(1200, 2200); }
+    if (clock >= b.next) { b.mode = 'dive'; b.target = pick(Object.keys(cars)); b.next = clock + 2300; }
+  }
+  let tx = b.wx, ty = b.wy, sp = 230;
+  if (b.mode === 'dive') { const p = centreOf(cars[b.target]); tx = p.x; ty = p.y; sp = 470; if (clock >= b.next) { b.mode = 'cruise'; b.next = clock + rand(2500, 4500); b.wnext = 0; } }
+  else if (b.mode === 'retreat') { tx = b.x + b.dir * 300; ty = 40; sp = 400; if (clock >= b.next) { b.mode = 'cruise'; b.next = clock + rand(2500, 4500); b.wnext = 0; } }
+  const d = Math.hypot(tx - b.x, ty - b.y) || 1, k = Math.min(1, 6 * dt);
+  b.vx += (((tx - b.x) / d) * sp - b.vx) * k; b.vy += (((ty - b.y) / d) * sp - b.vy) * k;
+  b.x += b.vx * dt; b.y += b.vy * dt;
+  if (Math.abs(b.vx) > 20) b.dir = Math.sign(b.vx);
+  if (b.mode === 'dive' && clock >= b.cool) {                       // a hit: shove the car the way the bird was flying, and send feathers everywhere
+    const c = cars[b.target], p = centreOf(c);
+    if (Math.hypot(p.x - b.x, p.y - b.y) < 52) {
+      const sl = Math.hypot(b.vx, b.vy) || 1, nx = b.vx / sl, ny = b.vy / sl;
+      for (const bd of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(bd); Body.setVelocity(bd, { x: v.x + nx * 7, y: v.y + ny * 5 - 4 }); }
+      Body.setAngularVelocity(c.body, c.body.angularVelocity + nx * 0.06);
+      shake = Math.max(shake, 12); sfx.bump(b.x); b.cool = clock + 1500; b.mode = 'retreat'; b.next = clock + 1300; b.dir = -Math.sign(b.vx || 1);
+      for (let i = 0; i < 14; i++) { const a = Math.random() * 6.28, sp2 = rand(60, 260), life = rand(0.6, 1.3); particles.push({ type: 'spark', x: b.x, y: b.y, vx: Math.cos(a) * sp2, vy: Math.sin(a) * sp2 - 80, life, max: life, color: pick(['#ffffff', '#ffe9a8', '#ff8a7a']) }); }
+    }
+  }
+}
+function drawBird() {
+  if (!bird) return;
+  const flap = Math.sin(clock / 55) * 0.8;
+  ctx.save(); ctx.translate(bird.x, bird.y); ctx.scale(bird.dir, 1); ctx.rotate(Math.max(-0.5, Math.min(0.5, bird.vy / 500)));
+  ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 3;
+  ctx.fillStyle = '#b2312a'; ctx.beginPath(); ctx.moveTo(-18, 2); ctx.lineTo(-44, -6); ctx.lineTo(-40, 8); ctx.closePath(); ctx.fill(); ctx.stroke();       // tail
+  ctx.fillStyle = '#e8453c'; ctx.beginPath(); ctx.ellipse(0, 0, 26, 19, 0, 0, 7); ctx.fill(); ctx.stroke();                                              // body
+  ctx.fillStyle = '#ffe9c9'; ctx.beginPath(); ctx.ellipse(4, 8, 16, 9, 0, 0, 3.14); ctx.fill();                                                          // belly
+  ctx.save(); ctx.translate(-2, -6); ctx.rotate(-0.9 + flap); ctx.fillStyle = '#b2312a'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-16, -34, 18, -50); ctx.quadraticCurveTo(14, -24, 6, 0); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();   // wing
+  ctx.fillStyle = '#ffb703'; ctx.beginPath(); ctx.moveTo(22, -2); ctx.lineTo(42, 4); ctx.lineTo(22, 10); ctx.closePath(); ctx.fill(); ctx.stroke();       // beak
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(13, -8, 6, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(15, -7, 2.6, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(5, -17); ctx.lineTo(21, -11); ctx.lineWidth = 4; ctx.stroke();                                                              // angry brow
+  ctx.restore();
+}
+function drawHammer(c) {
+  if (!c.hammer) return;
+  const hb = c.hammer.body, pb = c.hammer.pointB;
+  ctx.save(); ctx.translate(hb.position.x, hb.position.y); ctx.rotate(hb.angle); ctx.translate(pb.x, pb.y);
+  ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 3;
+  ctx.fillStyle = '#8a5a2b'; ctx.fillRect(-4, -90, 8, 90); ctx.strokeRect(-4, -90, 8, 90);
+  ctx.fillStyle = '#9aa7b4'; ctx.fillRect(-22, -110, 44, 30); ctx.strokeRect(-22, -110, 44, 30);
+  ctx.fillStyle = c.def.color; ctx.fillRect(-22, -98, 44, 6);
+  ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, 7); ctx.fill();
+  ctx.restore();
+}
+const controlsFlipped = () => !!roundMod && (roundMod.id === 'mirror' || (roundMod.id === 'drunk' && !!drunk && drunk.flipped));
+const bounceNow = () => (roundMod && roundMod.bounce) || TUNE.tireBounce;
 const gravityMul = () => (roundMod && roundMod.gravityMul) || 1;
 function applyGravity() { engine.gravity.scale = TUNE.gravity * gravityMul(); }
 function makeSlippery() {                          // storm: every ordinary bit of ground gets slick (ice patches stay icier still)
@@ -959,7 +1118,7 @@ function makeSlippery() {                          // storm: every ordinary bit 
 // Every body that belongs to a car, including anything it tows.
 const partsOf = b => b.parts.length > 1 ? b.parts.slice(1) : [b];
 function carBodies(c) {
-  const out = [...c.bodies.flatMap(partsOf), ...c.wheels];
+  const out = [...c.bodies.flatMap(partsOf), ...c.wheels, ...(c.hammer ? c.hammer.parts : [])];
   if (c.trailer) out.push(...partsOf(c.trailer.body), ...c.trailer.wheels, ...(c.trailer.bomb ? [c.trailer.bomb] : []));
   return out;
 }
@@ -975,7 +1134,7 @@ function carsOverlapTerrain() {
   const solids = groundBodies();
   return Object.values(cars).some(c => carBodies(c).some(part => Matter.Query.collides(part, solids).length > 0)) || trailersUnsupported();
 }
-const removeCar = c => Composite.remove(engine.world, [...c.bodies, ...c.wheels, ...c.axles, ...(c.hinge ? [c.hinge] : []), ...(c.trailer ? [c.trailer.body, ...c.trailer.wheels, ...c.trailer.cons, c.trailer.hitch, ...(c.trailer.bomb ? [c.trailer.bomb] : [])] : [])]);
+const removeCar = c => Composite.remove(engine.world, [...(c.hammer ? [c.hammer.body] : []), ...c.bodies, ...c.wheels, ...c.axles, ...(c.hinge ? [c.hinge] : []), ...(c.trailer ? [c.trailer.body, ...c.trailer.wheels, ...c.trailer.cons, c.trailer.hitch, ...(c.trailer.bomb ? [c.trailer.bomb] : [])] : [])]);
 function newRound() {
   losers.clear();
   particles = []; marks = [];
@@ -984,30 +1143,35 @@ function newRound() {
   fadeIn = celebrate ? { color: CARS[celebrate.id].color, start: clock } : null;   // fade back from the winner's colour
   celebrate = null;
   roundNo++;
-  roundMod = null; wind = null;
+  roundMod = null; wind = null; drunk = null; meteorNext = 0; bird = null;
   if (forceModId) roundMod = { ...ROUND_MODS.find(m => m.id === forceModId) };          // (for testing)
   else if (roundNo >= nextPickupRound) { roundMod = { ...pick(ROUND_MODS) }; nextPickupRound = roundNo + randInt(3, 5); }
   if (roundMod && roundMod.id === 'wind') { wind = { dir: pick([-1, 1]) }; roundMod.name += wind.dir > 0 ? ' >>>' : ' <<<'; }
+  if (roundMod && roundMod.id === 'drunk') drunk = { flipped: false, next: clock + 3000 };
   applyGravity();
   const opts = {
     scale: roundMod && roundMod.wheelScale || 1, headScale: roundMod && roundMod.headScale || 1, carScale: roundMod && roundMod.carScale || 1,
-    square: !!roundMod && roundMod.id === 'square', threeWheel: !!roundMod && roundMod.id === 'three', trailer: roundMod ? ({ caravan: 'caravan', bomb: 'bomb' })[roundMod.id] || null : null
+    tall: !!roundMod && roundMod.id === 'stilts', hammer: !!roundMod && roundMod.id === 'hammer', square: !!roundMod && roundMod.id === 'square', threeWheel: !!roundMod && roundMod.id === 'three', trailer: roundMod ? ({ caravan: 'caravan', bomb: 'bomb' })[roundMod.id] || null : null
   };
   trailerLen = opts.trailer ? 180 : 0; spawnK = opts.carScale;
-  spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : [44, -44];
+  spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : opts.tall ? [62, -62] : [44, -44];
   const prevLast = lastLevelId;
-  for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
+  for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 || opts.scale > 1.5 || opts.hammer ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
     buildLevel(attempt ? L.id : null);
     if (!L.bare && Math.random() < 0.3) addPickups();     // power-ups on about one round in three (never in the bare circle)
     if (roundMod && roundMod.id === 'storm') makeSlippery();
+    if (roundMod && roundMod.id === 'beach') for (let i = 0; i < 4; i++) { const p = addBall(rand(200, W - 200) , -90 - i * 150, rand(62, 78), 'beach'); Body.setVelocity(p.body, { x: rand(-1, 1), y: 0 }); }   // huge beach balls drop in from above
     cars = {
       blue: buildCar('blue', L.spawn.blue.P, L.spawn.blue.ang, opts),
       red: buildCar('red', L.spawn.red.P, L.spawn.red.ang, opts)
     };
+    if (roundMod && roundMod.id === 'wings') for (const id in cars) cars[id].wings = true;
+    if (opts.hammer) for (const id in cars) addHammer(cars[id]);
     if (!carsOverlapTerrain()) break;
     rebuilds++;
     lastLevelId = prevLast;                               // the rejected level does not count as the one just played
   }
+  if (roundMod && roundMod.id === 'bird') bird = makeBird();
   resetCamera();
   state = 'ready';
   readyUntil = clock + 1200;
@@ -1080,7 +1244,7 @@ function onLanding(pair) {
   for (const bd of bodies) {                                       // reflect the speed into the ground, keep the speed along it
     const into_ = into(bd);
     if (into_ < -TUNE.bounceMinSpeed) {
-      const k = -(1 + TUNE.tireBounce) * into_, v = vel.get(bd);
+      const k = -(1 + bounceNow()) * into_, v = vel.get(bd);
       Body.setVelocity(bd, { x: v.x + nx * k, y: v.y + ny * k });
     }
   }
@@ -1090,16 +1254,18 @@ function onLanding(pair) {
   if (impact > 11) car.grimaceUntil = clock + 700;
 }
 
+const softProp = b => b.label === 'prop' && b.propKind !== 'rock';      // a ball bonking a head is harmless; a falling rock is not
 Events.on(engine, 'collisionStart', e => {
   for (const pair of e.pairs) {
     onLanding(pair);
     onTrailerHit(pair);
-    if (pair.bodyA.isHead) headHit(pair.bodyA.owner);
-    if (pair.bodyB.isHead) headHit(pair.bodyB.owner);
+    if (pair.bodyA.isHead && !softProp(pair.bodyB)) headHit(pair.bodyA.owner);
+    if (pair.bodyB.isHead && !softProp(pair.bodyA)) headHit(pair.bodyB.owner);
   }
 });
 Events.on(engine, 'collisionActive', e => {    // a head still touching something after its shield's grace period
   for (const pair of e.pairs) for (const b of [pair.bodyA, pair.bodyB]) {
+    if (softProp(b === pair.bodyA ? pair.bodyB : pair.bodyA)) continue;
     const c = b.isHead && cars[b.owner];
     if (c && !c.shield && clock > (c.invulnUntil || 0)) lose(b.owner, 'head');
   }
@@ -1157,6 +1323,25 @@ Events.on(engine, 'beforeUpdate', () => {
     const gust = WIND_ACCEL * (0.75 + 0.25 * Math.sin(clock / 1100)) * wind.dir;
     for (const id in cars) for (const b of [...cars[id].bodies, ...cars[id].wheels]) Body.applyForce(b, b.position, { x: b.mass * gust, y: 0 });
   }
+  if (roundMod && state === 'playing') {
+    if (roundMod.id === 'meteor' && clock >= meteorNext) {            // a rock drops out of the sky every so often
+      meteorNext = clock + rand(450, 900);
+      if (L.props.filter(p => !p.gone).length < 16) { const p = addBall(rand(60, W - 60), -40, rand(13, 24), 'rock', { life: 7000 }); Body.setVelocity(p.body, { x: rand(-1.5, 1.5), y: 4 }); }
+    }
+    if (roundMod.id === 'drunk' && drunk && clock >= drunk.next) {   // the controls swap over at random
+      drunk.flipped = !drunk.flipped; drunk.next = clock + rand(2500, 5000); shake = Math.max(shake, 9); sfx.bump(W / 2);
+    }
+    if (roundMod.id === 'rocket') for (const id in cars) cars[id].boostUntil = 1e15;
+  }
+  if (bird && state === 'playing') stepBird(STEP / 1000);
+  for (const p of L.props) {                                          // loose balls and rocks: tidy up any that have gone far away or grown old
+    if (!p.gone && (p.body.position.y > H + 300 || p.body.position.x < -300 || p.body.position.x > W + 300 || (p.life && clock - p.born > p.life))) { p.gone = true; Composite.remove(engine.world, p.body); }
+  }
+  for (const sw of L.seesaws) {                                       // seesaw: damped, and stopped at its tilt limit
+    const b = sw.body;
+    Body.setAngularVelocity(b, b.angularVelocity * 0.97);
+    if (Math.abs(b.angle) > sw.max) { Body.setAngle(b, Math.sign(b.angle) * sw.max); if (b.angularVelocity * b.angle > 0) Body.setAngularVelocity(b, 0); }
+  }
   if (state !== 'ready') L.time += STEP / 1000;
   for (const m of L.movers) placeMover(m, L.time);          // moving platforms follow their paths
   touchInfo = scanContacts();
@@ -1182,7 +1367,7 @@ Events.on(engine, 'beforeUpdate', () => {
       const tq = -(BEND.k * rel + BEND.limitK * over + BEND.damp * (c.body2.angularVelocity - c.body.angularVelocity));
       c.body2.torque += tq; c.body.torque -= tq;
     }
-    const dir = aiIds.has(id) ? (state === 'playing' ? c.aiDir || 0 : 0) : (keys.has(c.def.cw) ? 1 : 0) - (keys.has(c.def.acw) ? 1 : 0);   // the computer presses no keys: it just chooses a direction
+    const dir = aiIds.has(id) ? (state === 'playing' ? c.aiDir || 0 : 0) : ((keys.has(c.def.cw) ? 1 : 0) - (keys.has(c.def.acw) ? 1 : 0)) * (controlsFlipped() ? -1 : 1);   // the computer presses no keys: it just chooses a direction
     if (dir !== (c.lastDir || 0)) c.throttle = 0;                       // new key press (or direction change): start from zero
     c.lastDir = dir;
     if (!c.trailer) {                                                   // the car faces the way it is going: the driver's input, else the way it is rolling
@@ -1192,6 +1377,11 @@ Events.on(engine, 'beforeUpdate', () => {
     c.throttle = dir !== 0 && state === 'playing' ? Math.min(1, (c.throttle || 0) + TUNE.accel * STEP / 1000) : 0;
     c.airTime = touching.has(id) ? 0 : (c.airTime || 0) + STEP;
     const airborne = c.airTime > TUNE.airDelay;
+    if (c.hammer) stepHammer(c, id);
+    if (c.wings && airborne && state === 'playing' && c.body.position.y > 140 && Body.getVelocity(c.body).y > -2.5) {     // wings: glide, and a key held in the air flaps for real lift
+      const lift = engine.gravity.scale * (dir !== 0 ? 1.1 : 0.8);
+      for (const b of [...c.bodies, ...c.wheels]) Body.applyForce(b, b.position, { x: 0, y: -b.mass * lift });
+    }
     if (dir !== 0 && state === 'playing' && airborne) {
       // Fun-flying rule: in mid-air the keys rotate the whole car so you can line up a landing.
       // TUNE.air: +1 turns the car the way the key points, -1 the opposite way, 0 switches mid-air rotation off.
@@ -1445,6 +1635,7 @@ function aiUpdate(now) {
     if (!c || !opp || now < (c.aiNext || 0)) continue;
     c.aiNext = now + lv.think * (0.8 + Math.random() * 0.4);
     c.aiDir = aiThink(c, opp, lv, now);
+    c.aiSwing = !!c.hammer && aiHammer(c, opp) && Math.random() < (aiLevel === 'easy' ? 0.3 : aiLevel === 'medium' ? 0.6 : 0.9);
   }
 }
 function setMode(m) {                                                          // 'two', 'ai-easy', 'ai-medium' or 'ai-hard'
@@ -1476,7 +1667,7 @@ function endMatch() {
 }
 
 /* ---------- input ---------- */
-const GAME_KEYS = new Set(['KeyZ', 'KeyX', 'Comma', 'Period']);
+const GAME_KEYS = new Set(['KeyZ', 'KeyX', 'Comma', 'Period', 'KeyC', 'Slash']);
 addEventListener('keydown', e => { if (GAME_KEYS.has(e.code)) { keys.add(e.code); e.preventDefault(); } });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
@@ -1625,6 +1816,32 @@ function drawTerrain() {
       ctx.fillStyle = '#9aa7b4'; ctx.fillRect(-m.len / 2, -8, m.len, 4);
       for (let x = -m.len / 2, k = 0; x < m.len / 2 - 12; x += 24, k++) { ctx.fillStyle = k % 2 ? '#ffd23f' : '#222'; ctx.fillRect(x, 3, 12, 5); }
       ctx.restore();
+    } else if (it.type === 'ball') {
+      if (it.gone) continue;
+      const b = it.body, r = it.r;
+      ctx.save(); ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle);
+      if (it.kind === 'rock') {
+        const v = Math.hypot(b.velocity.x, b.velocity.y);
+        if (v > 5) { const g = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 2.2); g.addColorStop(0, 'rgba(255,150,40,0.7)'); g.addColorStop(1, 'rgba(255,80,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 2.2, 0, 7); ctx.fill(); }
+        ctx.fillStyle = '#6e6259'; ctx.strokeStyle = '#2b241f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#4a413a'; ctx.beginPath(); ctx.arc(r * 0.3, -r * 0.2, r * 0.28, 0, 7); ctx.arc(-r * 0.35, r * 0.3, r * 0.2, 0, 7); ctx.fill();
+      } else if (it.kind === 'beach') {
+        const cols = ['#ff4d6d', '#fff', '#ffd23f', '#fff', '#3fb6ff', '#fff'];
+        for (let i = 0; i < 6; i++) { ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, i * Math.PI / 3, (i + 1) * Math.PI / 3); ctx.closePath(); ctx.fill(); }
+        ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.stroke();
+        ctx.fillStyle = '#ddd'; ctx.beginPath(); ctx.arc(0, 0, r * 0.12, 0, 7); ctx.fill();
+      } else {
+        ctx.fillStyle = it.color; ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r * 0.62, 3.4, 4.7); ctx.stroke();
+      }
+      ctx.restore();
+    } else if (it.type === 'seesaw') {
+      ctx.fillStyle = '#5b6672'; ctx.beginPath(); ctx.moveTo(it.cx, it.cy); ctx.lineTo(it.cx - 46, it.cy + 80); ctx.lineTo(it.cx + 46, it.cy + 80); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.translate(it.body.position.x, it.body.position.y); ctx.rotate(it.body.angle);
+      ctx.fillStyle = '#b8731f'; ctx.fillRect(-it.len / 2, -it.th / 2, it.len, it.th);
+      ctx.fillStyle = '#ffd23f'; ctx.fillRect(-it.len / 2, -it.th / 2, it.len, 5);
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill();
+      ctx.restore();
     } else if (it.type === 'patch') {
       drawPatch(it);
     } else if (it.type === 'rotor') {
@@ -1755,6 +1972,16 @@ function drawCar(c) {
   if (c.body2) return drawCar3(c);
   const { body, def } = c;
   for (const w of c.wheels) drawWheel(w, c.wheelR, c.square);       // drawn first: the bonnet and boot cover the wheel tops
+  if (c.tall) {                                                     // tall suspension: a strut from the body down to each hub
+    const a = body.angle, ca = Math.cos(a), sa = Math.sin(a);
+    c.wheels.forEach((w, i) => {
+      const ax = (i === 0 ? 1 : -1) * c.wxs * c.def.dir, lx = c.off.x + ax, ly = c.off.y + 6;
+      const bx = body.position.x + ca * lx - sa * ly, by = body.position.y + sa * lx + ca * ly;
+      ctx.lineCap = 'round'; ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 11; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(w.position.x, w.position.y); ctx.stroke();
+      ctx.strokeStyle = '#9aa7b4'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(w.position.x, w.position.y); ctx.stroke();
+      ctx.lineCap = 'butt';
+    });
+  }
   ctx.save();
   ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle);
   ctx.translate(c.off.x, c.off.y); ctx.scale(c.flipX * c.carScale, c.carScale);
@@ -1775,6 +2002,13 @@ function drawCar(c) {
   ctx.save(); ctx.translate(22, -17); ctx.rotate(-0.4);
   ctx.fillStyle = 'rgba(190,230,255,0.8)'; ctx.fillRect(-2, -8, 4, 16);
   ctx.restore();
+  if (c.wings) {                                                  // a pair of white wings on the roof, beating when the car is in the air
+    const air = (c.airTime || 0) > TUNE.airDelay, fl = air ? Math.sin(clock / 55) * 0.6 : 0.15 + 0.06 * Math.sin(clock / 350);
+    ctx.save(); ctx.translate(-4, -15); ctx.rotate(fl);
+    ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 2.5; ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.quadraticCurveTo(-26, -46, -104, -34); ctx.quadraticCurveTo(-66, -22, -84, -10); ctx.quadraticCurveTo(-46, -12, -58, 4); ctx.quadraticCurveTo(-24, 0, 0, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }
   drawShield(c);
   ctx.restore();
 }
@@ -1871,6 +2105,8 @@ function draw(now) {
   drawPickups(now);
   for (const id in cars) drawTrailer(cars[id]);
   for (const id in cars) drawCar(cars[id]);
+  for (const id in cars) drawHammer(cars[id]);
+  drawBird();
   for (const id in cars) drawBomb(cars[id]);
   ctx.save();
   if (L.bg === 'ring') { tracePath(L.ringPts); ctx.clip(); }
@@ -1880,6 +2116,12 @@ function draw(now) {
   drawParticles();
   ctx.restore();
   if (roundMod && roundMod.id === 'storm') { ctx.fillStyle = 'rgba(15,25,55,0.28)'; ctx.fillRect(0, 0, W, H); }   // dark storm sky
+  if (roundMod && state !== 'ready' && controlsFlipped()) {            // mirror madness and dizzy drivers: a purple tint while the controls are swapped
+    ctx.fillStyle = 'rgba(190,70,255,0.16)'; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    outlinedText('CONTROLS REVERSED!', 70, '800 30px "Segoe UI", Arial, sans-serif', '#e9c2ff', 6);
+    ctx.restore();
+  }
   drawColourFade(now);
   drawSuddenVignette(now);
   drawBanner(now);
@@ -1998,12 +2240,8 @@ function applyTune(t) {
   const old = t.units !== TUNE_UNITS;
   for (const k of TUNE_KEYS) if (typeof t[k] === 'number' && isFinite(t[k])) TUNE[k] = old && k === 'tireBounce' ? Math.min(1.2, t[k] * 0.5) : t[k];
 }
-let saveTimer = null;
-function saveTune() {
-  const snap = tuneSnapshot();
-  try { localStorage.setItem('carGameTune', JSON.stringify(snap)); } catch (e) { }
-  clearTimeout(saveTimer);                                                 // also keep a copy on the server, shared by every address and browser
-  saveTimer = setTimeout(() => fetch('/api/tune', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(snap) }).catch(() => { }), 250);
+function saveTune() {                                                      // each player's sliders are kept in their own browser
+  try { localStorage.setItem('carGameTune', JSON.stringify(tuneSnapshot())); } catch (e) { }
 }
 function syncTuneUi() {
   for (const [sid, oid, key, fmt] of SLIDERS) {
@@ -2036,7 +2274,6 @@ const nextSel = document.getElementById('nextLevel');
 for (const l of LEVELS) nextSel.add(new Option(l.name, l.id));
 nextSel.addEventListener('change', () => { forceLevelId = nextSel.value || null; nextSel.blur(); });
 syncTuneUi();
-fetch('/api/tune', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(t => { if (t) { applyTune(t); syncTuneUi(); } }).catch(() => { });
 
 window.__game = {
   get L() { return L; }, LEVELS, setForce(id) { forceLevelId = id; }, TUNE, SUDDEN, END, cam, CAM, updateCamera, engine, newRound, checkRules, frame,
@@ -2046,7 +2283,7 @@ window.__game = {
   get overInfo() { return overInfo; }, get roundMod() { return roundMod; }, get wind() { return wind; },
   respawn(id, P, ang) { removeCar(cars[id]); cars[id] = buildCar(id, P, ang); },
   drawFace, ctx,
-  startMatch, showMenu, endMatch, get menuOn() { return menuOn; }, get matchWinner() { return matchWinner; }, hideMenu() { menuOn = false; document.getElementById('menu').classList.add('hidden'); },
+  startMatch, showMenu, endMatch, get menuOn() { return menuOn; }, get bird() { return bird; }, HAMMER, get matchWinner() { return matchWinner; }, hideMenu() { menuOn = false; document.getElementById('menu').classList.add('hidden'); },
   forceMod(id) { forceModId = id; }, sfx, BEND, setMode, setAI(ids, level) { aiIds = new Set(ids); aiLevel = level; }, get aiIds() { return aiIds; },
   dbg: { buildLevel, buildCar, carsOverlapTerrain, removeCars() { for (const id in cars) removeCar(cars[id]); } },
   get rebuilds() { return rebuilds; }, get lastImpact() { return lastImpact; }, resetImpact() { lastImpact = 0; }, get particles() { return particles; }, get marks() { return marks; }, get shake() { return shake; }, get celebrate() { return celebrate; }, get fadeIn() { return fadeIn; },
