@@ -101,7 +101,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script>
-const VERSION = 9;                                 // bump by one with every change to the game
+const VERSION = 10;                                 // bump by one with every change to the game
 document.getElementById('ver').textContent = 'v' + VERSION;
 const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
 
@@ -157,7 +157,7 @@ const ROUND_MODS = [
   { id: 'toot', name: 'PARP PARP! THE CARS KEEP TOOTING FORWARDS' },
   { id: 'achoo', name: 'ACHOO! A GIANT KEEPS SNEEZING' }
 ];
-const GLUE = { pull: 2.2 };       // glue tyres: how hard a wheel on any surface is pulled into it (x gravity), enough to cling to walls and ceilings
+const GLUE = { pull: 9 };       // glue tyres: how hard a wheel on any surface is pulled into it (x gravity), enough to cling to walls and ceilings
 const FLY = { hover: 0.62, thrust: 1.5, maxSpeed: 11, drag: 0.996, ceiling: 100, level: 0.012, pitch: 0.5 };   // flying cars: share of gravity cancelled, thrust (x gravity) along the nose, top speed (px per step), air drag, soft ceiling (px from the top), how fast the car swings to its pitch, and the nose-up pitch (radians) while a key is held
 // The rain rounds (things falling from the sky) are only taken 3 times in 10 when they come up, because they get boring quickly.
 const pickMod = () => { for (let i = 0; i < 6; i++) { const m = pick(ROUND_MODS); if (!m.rain || Math.random() < 0.3) return m; } return pick(ROUND_MODS.filter(m => !m.rain)); };
@@ -762,6 +762,27 @@ function addSurfaces() {
   }
 }
 
+/* ---------- ground lines for the hill levels ---------- */
+const smooth01 = t => t * t * (3 - 2 * t);
+const hump = (x, c, w) => smooth01(Math.max(0, 1 - Math.abs(x - c) / w));      // a smooth hill of height 1 and half-width w, centred on c
+function landProfile(f) {                                       // a ground line from a height function; no step steeper than 0.75 so cars can always climb it
+  const pts = []; let prev = null;
+  for (let x = 0; x <= W; x += 16) {
+    let y = Math.max(170, Math.min(640, f(x)));
+    if (prev !== null) y = Math.max(prev - 12, Math.min(prev + 12, y));
+    pts.push({ x, y }); prev = y;
+  }
+  return pts;
+}
+const hillSpawns = (pts, lo, hi) => setSpawns(
+  surfaceSpawn(pts, lo[0], lo[1], 0.12, false) || surfaceSpawn(pts, lo[0], lo[1], 0.3, false),
+  surfaceSpawn(pts, W - hi[1], W - hi[0], 0.12, false) || surfaceSpawn(pts, W - hi[1], W - hi[0], 0.3, false));
+// Control points joined by smooth curves: [x, y] pairs in order of x.
+const curveThrough = ctl => x => {
+  for (let i = 1; i < ctl.length; i++) if (x <= ctl[i][0]) { const a = ctl[i - 1], b = ctl[i]; return a[1] + (b[1] - a[1]) * smooth01((x - a[0]) / (b[0] - a[0] || 1)); }
+  return ctl[ctl.length - 1][1];
+};
+
 /* ---------- the level catalogue: each is a basic idea with random variations ---------- */
 const LEVELS = [
   { id: 'bowl', name: 'The Bowl', build() {                 // ring ramp round the screen + random island; cars start on the ring
@@ -881,6 +902,37 @@ const LEVELS = [
       addSlab(cx, y, len, 0, th);
       const top = slabPts(cx, y - th / 2, len, 0);
       return setSpawns(surfaceSpawn(top, cx - len / 2 + 50, cx - len / 2 + 190, 0.1, false), surfaceSpawn(top, cx + len / 2 - 190, cx + len / 2 - 50, 0.1, false));
+  } },
+  { id: 'hills', name: 'Rolling Hills', floor: 0, walls: 1, build() {      // flat shoulders and three big rolling hills between them: speed up the climbs, fly off the crests
+      const base = rand(570, 620), c = [rand(380, 430), rand(620, 670), rand(860, 910)], w = [rand(170, 230), rand(170, 230), rand(170, 230)], h = [rand(70, 135), rand(70, 135), rand(70, 135)];
+      const pts = landProfile(x => base - c.reduce((sum, cx, i) => sum + h[i] * hump(x, cx, w[i]), 0));
+      addLand(pts);
+      return hillSpawns(pts, [70, 200], [70, 200]);
+  } },
+  { id: 'skatepark', name: 'Skate Park', floor: 0, walls: 1, build() {         // a curved quarter-pipe up each wall, a flat between them and a kicker or two in the middle
+      const base = rand(580, 620), R = rand(230, 290), Hp = rand(150, 190), kick = rand(70, 120), kw = rand(120, 160), second = Math.random() < 0.5;
+      const pipe = x => x < R ? Hp * (1 - Math.sqrt(Math.max(0, 1 - ((R - x) / R) ** 2))) : x > W - R ? Hp * (1 - Math.sqrt(Math.max(0, 1 - ((x - (W - R)) / R) ** 2))) : 0;
+      const pts = landProfile(x => base - pipe(x) - kick * hump(x, W / 2, kw) - (second ? 55 * hump(x, W / 2 + 250, 80) : 0));
+      addLand(pts);
+      return hillSpawns(pts, [R + 10, R + 190], [R + 10, R + 190]);
+  } },
+  { id: 'skijump', name: 'Ski Jumps', floor: 0, walls: 1, build() {            // a plateau at each side, a long run down, a steep kicker at the bottom and a dip between the kickers
+      const B = rand(570, 610), yL = rand(420, 500), yR = rand(420, 500), k1 = rand(55, 90), k2 = rand(55, 90), dip = rand(8, 40);
+      const pts = landProfile(curveThrough([[0, yL], [230, yL], [440, B], [470, B - 4], [545, B - k1], [610, B + dip], [W - 610, B + dip], [W - 545, B - k2], [W - 470, B - 4], [W - 440, B], [W - 230, yR], [W, yR]]));
+      addLand(pts);
+      return hillSpawns(pts, [80, 200], [80, 200]);
+  } },
+  { id: 'camel', name: 'Camel Humps', floor: 0, walls: 1, build() {            // two huge humps of different heights: a hard climb and a big leap down the far side
+      const base = rand(580, 620), c1 = rand(410, 480), c2 = rand(790, 870), h1 = rand(170, 240), h2 = rand(110, 190), w1 = rand(200, 250), w2 = rand(190, 240);
+      const pts = landProfile(x => base - h1 * hump(x, c1, w1) - h2 * hump(x, c2, w2));
+      addLand(pts);
+      return hillSpawns(pts, [90, 220], [90, 220]);
+  } },
+  { id: 'crater', name: 'Crater Hill', floor: 0, walls: 1, build() {            // one big flat-topped hill in the middle with a crater in its top: climb up, drop in, jump out
+      const base = rand(590, 620), Hc = rand(150, 195), run = Hc / 0.62, wc = rand(65, 90), Dc = rand(40, 62), wt = Math.max(wc + 30, rand(100, 160)), ws = wt + run, yT = base - Hc;
+      const pts = landProfile(curveThrough([[0, base], [W / 2 - ws, base], [W / 2 - wt, yT], [W / 2 - wc, yT], [W / 2, yT + Dc], [W / 2 + wc, yT], [W / 2 + wt, yT], [W / 2 + ws, base], [W, base]]));
+      addLand(pts);
+      return hillSpawns(pts, [70, 220], [70, 220]);
   } }
 ];
 
@@ -1197,7 +1249,7 @@ function newRound() {
   };
   trailerLen = opts.trailer ? 180 : 0; spawnK = opts.carScale;
   spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : opts.tall ? [62, -62] : [44, -44];
-  const fxRoll = { flag: Math.random() < 0.3, bombs: Math.random() < 0.25, rot: Math.random() < 0.12, mouse: Math.random() < 0.12 };   // level events: a flag to grab, time bombs, a rotting level, a hungry mouse
+  const fxRoll = { flag: Math.random() < 0.3, bombs: Math.random() < 0.25, rot: Math.random() < 0.12, mouse: Math.random() < 0.02 };   // level events: a flag to grab, time bombs, a rotting level, a hungry mouse
   const prevLast = lastLevelId, circleGlue = Math.random() < 0.4;      // on the Circle, two rounds in five have green sticky tyres
   for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 || opts.scale > 1.5 || opts.hammer ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
     buildLevel(attempt ? L.id : null);
@@ -1465,7 +1517,6 @@ Events.on(engine, 'beforeUpdate', () => {
         if (!cp || w.burst) continue;
         const dx = cp.x - w.position.x, dy = cp.y - w.position.y, d = Math.hypot(dx, dy) || 1, f = engine.gravity.scale * GLUE.pull;
         Body.applyForce(w, w.position, { x: w.mass * f * dx / d, y: w.mass * f * dy / d });
-        Body.applyForce(c.body, c.body.position, { x: c.body.mass * f * dx / d * 0.5, y: c.body.mass * f * dy / d * 0.5 });
       }
     }
     if (lava) for (const w of c.wheels) if (!w.burst && w.bounds.max.y > waterY) burstTyre(c, w);   // a tyre that touches lava goes bang
@@ -1602,12 +1653,16 @@ function addLevelFx(roll) {
   if (roll.rot) { L.rotOn = true; L.rotNext = 0; L.extras.push('rotting level'); }
   if (roll.mouse) { const q = biteSpot(); if (q) { L.mouse = { x: q.x, y: q.y, tx: q.x, ty: q.y, dir: Math.random() < 0.5 ? 1 : -1, bite: 0, start: 0 }; L.extras.push('hungry mouse'); } }
 }
-function flagBonus(c, id, f) {
-  const kind = pick(['invincible', 'turbo', 'sticky', 'shield']), who = CARS[id].name;
-  if (kind === 'invincible') { c.invulnUntil = clock + 10000; popup(f.x, f.y - 60, who + ': INVINCIBLE FOR 10 SECONDS!', '#ffe066', 2400, 28); }
-  else if (kind === 'turbo') { c.boostUntil = clock + 10000; popup(f.x, f.y - 60, who + ': TURBO FOR 10 SECONDS!', '#ffb347', 2400, 28); }
-  else if (kind === 'sticky') { c.glue = true; c.glueUntil = clock + 10000; for (const w of c.wheels) w.glue = true; popup(f.x, f.y - 60, who + ': STICKY TYRES FOR 10 SECONDS!', '#7CFC00', 2400, 28); }
-  else { c.shield = true; popup(f.x, f.y - 60, who + ': BUBBLE SHIELD!', '#9be7ff', 2400, 28); }
+function flagBonus(c, id, f) {                                     // two bonuses at once (sometimes three)
+  const all = ['invincible', 'turbo', 'sticky', 'shield'].sort(() => Math.random() - 0.5), kinds = all.slice(0, Math.random() < 0.3 ? 3 : 2);
+  const label = { invincible: 'INVINCIBLE', turbo: 'TURBO', sticky: 'STICKY TYRES', shield: 'BUBBLE SHIELD' };
+  const who = CARS[id].name;
+  if (kinds.includes('invincible')) c.invulnUntil = clock + 10000;
+  if (kinds.includes('turbo')) c.boostUntil = clock + 10000;
+  if (kinds.includes('sticky')) { c.glue = true; c.glueUntil = clock + 10000; for (const w of c.wheels) w.glue = true; }
+  if (kinds.includes('shield')) c.shield = true;
+  popup(f.x, f.y - 60, who + ': ' + kinds.map(k => label[k]).join(' + ') + '!', '#ffe066', 2800, 26);
+  popup(f.x, f.y - 30, '(10 seconds)', '#fff', 2800, 18);
   sfx.chime('boost', f.x); sfx.chime('shield', f.x);
   spawnDust(f.x, f.y, 18, 'gold', { speed: [80, 260], size: [4, 9] }); shake = Math.max(shake, 5);
 }
