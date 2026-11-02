@@ -45,6 +45,7 @@
   #tune input[type=range] { width: 120px; accent-color: #4d8dff; }
   #tune output { display: inline-block; min-width: 3.4em; font-variant-numeric: tabular-nums; color: #fff; }
   #tune select, #tune button { background: #21262d; color: #fff; border: 1px solid #30363d; border-radius: 5px; padding: 3px 8px; font: inherit; }
+#ver { position: fixed; right: 6px; bottom: 4px; font: 9px/1 system-ui, sans-serif; color: rgba(255,255,255,0.55); text-shadow: 0 0 2px rgba(0,0,0,0.6); pointer-events: none; user-select: none; }
 </style>
 </head>
 <body>
@@ -80,14 +81,17 @@
     <label title="Top wheel spin speed">Top speed <input type="range" id="tMaxSpin" min="0.2" max="1.6" step="0.01"><output id="oMaxSpin"></output></label>
     <label title="Axle springiness. 1 = rigid axles; lower = softer, the car squashes on landing">Suspension <input type="range" id="tSusp" min="0" max="1" step="0.01"><output id="oSusp"></output></label>
     <label>Volume <input type="range" id="tVolume" min="0" max="1" step="0.01"><output id="oVolume"></output></label>
-    <button id="tMute" type="button" title="Mute or unmute (M)">Sound on</button>
+    <button id="tMute" type="button" title="Mute or unmute (U)">Sound on</button>
     <button id="tReset" type="button">Reset</button>
     <label>Level <span id="levelName">-</span></label>
     <label>Next <select id="nextLevel"><option value="">Random</option></select></label>
   </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<div id="ver"></div>
 <script>
+const VERSION = 4;                                  // bump by one with every change to the game
+document.getElementById('ver').textContent = 'v' + VERSION;
 const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -127,8 +131,10 @@ const ROUND_MODS = [
   { id: 'stilts', name: 'GIGANTIC WHEELS ON TALL SUSPENSION!', wheelScale: 2.2 },
   { id: 'wings', name: 'WINGS! HOLD A KEY IN THE AIR TO FLAP' },
   { id: 'bird', name: 'ANGRY BIRD ON THE LOOSE!' },
-  { id: 'hammer', name: 'HAMMER TIME!  Blue: C   Red: /' }
+  { id: 'hammer', name: 'HAMMER TIME!  Blue: C   Red: /' },
+  { id: 'fly', name: 'FLYING CARS! HOLD A KEY TO FLY THE WAY YOU ARE POINTING' }
 ];
+const FLY = { hover: 0.62, thrust: 1.5, maxSpeed: 11, drag: 0.996, ceiling: 100, level: 0.012, pitch: 0.5 };   // flying cars: share of gravity cancelled, thrust (x gravity) along the nose, top speed (px per step), air drag, soft ceiling (px from the top), how fast the car swings to its pitch, and the nose-up pitch (radians) while a key is held
 const WIND_ACCEL = 0.0005;        // gale strength (px per ms squared; gravity is about 0.00135)
 
 const canvas = document.getElementById('c');
@@ -1158,7 +1164,7 @@ function newRound() {
   const prevLast = lastLevelId;
   for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 || opts.scale > 1.5 || opts.hammer ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
     buildLevel(attempt ? L.id : null);
-    if (!L.bare && Math.random() < 0.3) addPickups();     // power-ups on about one round in three (never in the bare circle)
+    if (L.bare || Math.random() < 0.3) addPickups();      // power-ups on about one round in three; the bare circle always has rockets
     if (roundMod && roundMod.id === 'storm') makeSlippery();
     if (roundMod && roundMod.id === 'beach') for (let i = 0; i < 4; i++) { const p = addBall(rand(200, W - 200) , -90 - i * 150, rand(62, 78), 'beach'); Body.setVelocity(p.body, { x: rand(-1, 1), y: 0 }); }   // huge beach balls drop in from above
     cars = {
@@ -1166,6 +1172,7 @@ function newRound() {
       red: buildCar('red', L.spawn.red.P, L.spawn.red.ang, opts)
     };
     if (roundMod && roundMod.id === 'wings') for (const id in cars) cars[id].wings = true;
+    if (roundMod && roundMod.id === 'fly') for (const id in cars) cars[id].flier = true;
     if (opts.hammer) for (const id in cars) addHammer(cars[id]);
     if (!carsOverlapTerrain()) break;
     rebuilds++;
@@ -1378,11 +1385,12 @@ Events.on(engine, 'beforeUpdate', () => {
     c.airTime = touching.has(id) ? 0 : (c.airTime || 0) + STEP;
     const airborne = c.airTime > TUNE.airDelay;
     if (c.hammer) stepHammer(c, id);
+    if (c.flier && state === 'playing') stepFlier(c, dir, airborne);
     if (c.wings && airborne && state === 'playing' && c.body.position.y > 140 && Body.getVelocity(c.body).y > -2.5) {     // wings: glide, and a key held in the air flaps for real lift
       const lift = engine.gravity.scale * (dir !== 0 ? 1.1 : 0.8);
       for (const b of [...c.bodies, ...c.wheels]) Body.applyForce(b, b.position, { x: 0, y: -b.mass * lift });
     }
-    if (dir !== 0 && state === 'playing' && airborne) {
+    if (dir !== 0 && state === 'playing' && airborne && !c.flier) {
       // Fun-flying rule: in mid-air the keys rotate the whole car so you can line up a landing.
       // TUNE.air: +1 turns the car the way the key points, -1 the opposite way, 0 switches mid-air rotation off.
       const k = TUNE.air;
@@ -1413,6 +1421,24 @@ Events.on(engine, 'beforeUpdate', () => {
     }
   }
 });
+
+// Flying cars: gravity is mostly cancelled, and a key held pushes the car along its nose (the same key also tilts it in the
+// air, so holding it climbs and then curves over). Let go and the car drifts down and levels off. A soft ceiling stops it leaving the top.
+function stepFlier(c, dir, airborne) {
+  const all = [...c.bodies, ...c.wheels], g = engine.gravity.scale;
+  const a = c.body.angle, fx = Math.cos(a) * c.facing, fy = Math.sin(a) * c.facing;
+  for (const b of all) {
+    const thrust = dir !== 0 ? FLY.thrust : 0;
+    Body.applyForce(b, b.position, { x: b.mass * g * thrust * fx, y: b.mass * g * (thrust * fy - FLY.hover) });
+    const v = b.velocity, sp = Math.hypot(v.x, v.y), k = FLY.drag * (sp > FLY.maxSpeed ? FLY.maxSpeed / sp : 1);
+    Body.setVelocity(b, { x: v.x * k, y: v.y * k * (b.position.y < FLY.ceiling && v.y < 0 ? 0.8 : 1) });
+  }
+  if (dir !== 0) { emitFlames(c); if (Math.random() < 0.05) sfx.chime('boost', c.body.position.x); }
+  if (airborne || dir !== 0) {                                     // a key held pitches the nose up a little (so the thrust climbs); no key settles level again
+    const lvl = Math.atan2(Math.sin(a), Math.cos(a)), target = dir !== 0 ? -FLY.pitch * c.facing : 0;
+    Body.setAngularVelocity(c.body, (c.body.angularVelocity + (target - lvl) * FLY.level) * 0.9);
+  }
+}
 
 function checkRules() {
   if (state !== 'playing') return;
@@ -1463,14 +1489,16 @@ function addMovers() {
 // Power-ups: a few floating orbs, boost (a burst of speed, then 2.5 s of extra power and top speed) or shield
 // (absorbs the next head bump). Taken ones do not come back that round.
 function addPickups() {
-  const want = randInt(2, 4), spots = [];
+  const want = L.bare ? randInt(3, 4) : randInt(2, 4), kinds = L.bare ? ['boost'] : ['boost', 'shield'], spots = [];   // the bare circle always gets rockets
   for (let i = 0; i < 300 && spots.length < want; i++) {
-    const q = pick(L.samples), x = q.x, y = q.y - 70;
+    const q = pick(L.samples);
+    let x = q.x, y = q.y - 70;
+    if (L.bare) { const d = Math.hypot(CX - q.x, 345 - q.y) || 1; x = q.x + (CX - q.x) / d * 80; y = q.y + (345 - q.y) / d * 80; }   // inside the circle, not above its rim
     if (x < 90 || x > W - 90 || y < 90 || y > WATER_Y - 60) continue;
     if (!freeAir(x, y) || L.samples.some(sm => Math.hypot(sm.x - x, sm.y - y) < 48)) continue;
     if (nearSpawn(x, y, 170) || spots.some(sp => Math.hypot(sp.x - x, sp.y - y) < 200)) continue;
     if (L.rotors.some(r => Math.hypot(r.pos.x - x, r.pos.y - y) < r.len / 2 + 40)) continue;
-    spots.push({ x, y, kind: pick(['boost', 'shield']), taken: false });
+    spots.push({ x, y, kind: pick(kinds), taken: false });
   }
   if (spots.length) { L.pickups = spots; L.extras.push('power-ups'); }
 }
@@ -2009,6 +2037,14 @@ function drawCar(c) {
     ctx.moveTo(0, 0); ctx.quadraticCurveTo(-26, -46, -104, -34); ctx.quadraticCurveTo(-66, -22, -84, -10); ctx.quadraticCurveTo(-46, -12, -58, 4); ctx.quadraticCurveTo(-24, 0, 0, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
   }
+  if (c.flier) {                                                  // a spinning propeller on the nose (a blur while the key is held)
+    const on = keys.has(c.def.cw) || keys.has(c.def.acw) || (aiIds.has(c.id) && c.aiDir);
+    ctx.save(); ctx.translate(68, -2);
+    ctx.fillStyle = '#1b2433'; ctx.fillRect(-6, -3, 8, 6);
+    if (on) { ctx.fillStyle = 'rgba(203,213,225,0.55)'; ctx.beginPath(); ctx.ellipse(2, 0, 5, 30, 0, 0, 6.29); ctx.fill(); }
+    else { ctx.fillStyle = '#cbd5e1'; ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(2, 0, 4, 28 * Math.abs(Math.cos(clock / 90)), 0, 0, 6.29); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
   drawShield(c);
   ctx.restore();
 }
@@ -2267,7 +2303,7 @@ function syncSoundUi() { muteBtn.textContent = sfx.muted ? 'Sound off' : 'Sound 
 function toggleMute() { sfx.ensure(); sfx.setMuted(!sfx.muted); syncSoundUi(); }
 muteBtn.addEventListener('click', toggleMute);
 volSlider.addEventListener('input', e => { sfx.ensure(); sfx.setVolume(parseFloat(e.target.value)); syncSoundUi(); });
-addEventListener('keydown', e => { sfx.ensure(); if (e.code === 'KeyM' && !e.repeat && e.target.tagName !== 'INPUT') toggleMute(); });   // any key press unlocks audio; M mutes
+addEventListener('keydown', e => { sfx.ensure(); if (e.code === 'KeyU' && !e.repeat && e.target.tagName !== 'INPUT') toggleMute(); });   // any key press unlocks audio; U mutes
 addEventListener('pointerdown', () => sfx.ensure());
 syncSoundUi();
 const nextSel = document.getElementById('nextLevel');
