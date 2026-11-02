@@ -101,7 +101,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script>
-const VERSION = 6;                                 // bump by one with every change to the game
+const VERSION = 8;                                 // bump by one with every change to the game
 document.getElementById('ver').textContent = 'v' + VERSION;
 const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
 
@@ -190,7 +190,7 @@ let waterY = WATER_Y;                                // the water surface; sudde
 let sd = null;                                       // sudden death: { kind, start, inset, bodies, bannerUntil }
 let roundNo = 0, nextPickupRound = randInt(3, 5), roundMod = null, wind = null;
 let drunk = null, meteorNext = 0, bird = null;
-let lava = false, rooAt = 0, roo = null, fun = null, popups = [];   // boiling lava instead of water; the kangaroo (when it arrives and the animal itself); timers for the silly rounds; floating words                    // dizzy drivers: { flipped, next }; meteor shower: when the next rock falls
+let lava = false, slime = false, rooAt = 0, roo = null, fun = null, popups = [];   // boiling lava instead of water; the kangaroo (when it arrives and the animal itself); timers for the silly rounds; floating words                    // dizzy drivers: { flipped, next }; meteor shower: when the next rock falls
 let shake = 0;                                       // screen shake amplitude in pixels
 let timeScale = 1, slow = null;                      // slow motion: { start, ms }
 let overAt = 0, overInfo = null, pendingWinner = null;   // end-of-round sequence
@@ -1147,8 +1147,8 @@ const controlsFlipped = () => !!roundMod && (roundMod.id === 'mirror' || (roundM
 const bounceNow = () => (roundMod && roundMod.bounce) || TUNE.tireBounce;
 const gravityMul = () => (roundMod && roundMod.gravityMul) || 1;
 function applyGravity() { engine.gravity.scale = TUNE.gravity * gravityMul(); }
-function makeSlippery() {                          // storm: every ordinary bit of ground gets slick (ice patches stay icier still)
-  for (const b of Composite.allBodies(engine.world)) if (b.label === 'terrain' && b.isStatic && !b.surface) { b.friction = 0.3; b.frictionStatic = 0.3; }
+function makeSlippery(f = 0.3) {                   // storm: every ordinary bit of ground gets slick (ice patches stay icier still); slime is slicker still
+  for (const b of Composite.allBodies(engine.world)) if (b.label === 'terrain' && b.isStatic && !b.surface) { b.friction = f; b.frictionStatic = f; }
 }
 // Every body that belongs to a car, including anything it tows.
 const partsOf = b => b.parts.length > 1 ? b.parts.slice(1) : [b];
@@ -1181,7 +1181,8 @@ function newRound() {
   roundMod = null; wind = null; drunk = null; meteorNext = 0; bird = null; fun = null; roo = null; popups = [];
   engine.gravity.x = 0;
   lava = Math.random() < 0.25;                                        // about one round in four the water is boiling lava
-  rooAt = Math.random() < 0.3 ? 1 : 0;                                // and now and then a kangaroo bounds in (1 = decide when, once the round starts)
+  slime = Math.random() < 0.15;                                       // and about one in seven the floor is slimy all over
+  rooAt = Math.random() < 0.12 ? 1 : 0;                                // and now and then a kangaroo bounds in (1 = decide when, once the round starts)
   if (forceModId) roundMod = { ...ROUND_MODS.find(m => m.id === forceModId) };          // (for testing)
   else if (roundNo >= nextPickupRound) { roundMod = { ...pick(ROUND_MODS) }; nextPickupRound = roundNo + randInt(3, 5); }
   if (roundMod && roundMod.id === 'wind') { wind = { dir: pick([-1, 1]) }; roundMod.name += wind.dir > 0 ? ' >>>' : ' <<<'; }
@@ -1193,11 +1194,13 @@ function newRound() {
   };
   trailerLen = opts.trailer ? 180 : 0; spawnK = opts.carScale;
   spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : opts.tall ? [62, -62] : [44, -44];
-  const prevLast = lastLevelId;
+  const prevLast = lastLevelId, circleGlue = Math.random() < 0.4;      // on the Circle, two rounds in five have green sticky tyres
   for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 || opts.scale > 1.5 || opts.hammer ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
     buildLevel(attempt ? L.id : null);
     if (L.bare || Math.random() < 0.3) addPickups();      // power-ups on about one round in three; the bare circle always has rockets
     if (roundMod && roundMod.id === 'storm') makeSlippery();
+    if (slime) { makeSlippery(0.04); L.extras.push('slimy floor'); }
+    if (circleGlue && L.id === 'circle') L.extras.push('green sticky tyres');
     if (roundMod && roundMod.id === 'beach') for (let i = 0; i < 4; i++) { const p = addBall(rand(200, W - 200) , -90 - i * 150, rand(62, 78), 'beach'); Body.setVelocity(p.body, { x: rand(-1, 1), y: 0 }); }   // huge beach balls drop in from above
     cars = {
       blue: buildCar('blue', L.spawn.blue.P, L.spawn.blue.ang, opts),
@@ -1205,7 +1208,7 @@ function newRound() {
     };
     if (roundMod && roundMod.id === 'wings') for (const id in cars) cars[id].wings = true;
     if (roundMod && roundMod.id === 'fly') for (const id in cars) cars[id].flier = true;
-    if (roundMod && roundMod.id === 'glue') for (const id in cars) { cars[id].glue = true; for (const w of cars[id].wheels) w.glue = true; }
+    if ((roundMod && roundMod.id === 'glue') || (circleGlue && L.id === 'circle')) for (const id in cars) { cars[id].glue = true; for (const w of cars[id].wheels) w.glue = true; }
     if (opts.hammer) for (const id in cars) addHammer(cars[id]);
     if (!carsOverlapTerrain()) break;
     rebuilds++;
@@ -1434,7 +1437,7 @@ Events.on(engine, 'beforeUpdate', () => {
     } else if (dir !== 0 && state === 'playing') {
       for (const [wi, w] of c.wheels.entries()) {
         const boosted = clock < (c.boostUntil || 0);
-        if (dir * w.angularVelocity < TUNE.maxSpin * (boosted ? 1.4 : 1)) {
+        if (!w.burst && dir * w.angularVelocity < TUNE.maxSpin * (boosted ? 1.4 : 1)) {
           const t = dir * TUNE.torque * c.throttle * c.torqueMul * (boosted ? 1.8 : 1);
           w.torque += t;
           c.wheelHalves[wi].torque -= t;                       // reaction on the chassis (the half that wheel is on): this is what lifts the nose
@@ -1446,12 +1449,13 @@ Events.on(engine, 'beforeUpdate', () => {
     if (c.glue && state === 'playing') {                                // glue tyres: a wheel touching anything is pulled hard into it, so the car clings to walls and ceilings
       for (const w of c.wheels) {
         const cp = touchInfo.wheelContact.get(w);
-        if (!cp) continue;
+        if (!cp || w.burst) continue;
         const dx = cp.x - w.position.x, dy = cp.y - w.position.y, d = Math.hypot(dx, dy) || 1, f = engine.gravity.scale * GLUE.pull;
         Body.applyForce(w, w.position, { x: w.mass * f * dx / d, y: w.mass * f * dy / d });
         Body.applyForce(c.body, c.body.position, { x: c.body.mass * f * dx / d * 0.5, y: c.body.mass * f * dy / d * 0.5 });
       }
     }
+    if (lava) for (const w of c.wheels) if (!w.burst && w.bounds.max.y > waterY) burstTyre(c, w);   // a tyre that touches lava goes bang
     // sticky mud: any wheel on mud drags the whole car back
     if (c.wheels.some(w => (touchInfo.wheelGround.get(w) || {}).surface === 'mud')) {
       for (const b of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(b); Body.setVelocity(b, { x: v.x * 0.985, y: v.y * 0.985 }); }
@@ -1543,6 +1547,14 @@ function stepRoo() {                                                 // now and 
     Body.setVelocity(b, { x: roo.dir * rand(3, 5.5), y: -rand(11, 15) });
     sfx.bump(b.position.x);
   }
+}
+
+function burstTyre(c, w) {                                           // the tyre pops: it shrinks to a flat, floppy rubber ring that no longer drives
+  w.burst = true; w.glue = false;
+  Body.scale(w, 0.55, 0.55);
+  popup(w.position.x, w.position.y - 50, 'POP!', '#ff8a3d', 1000, 34);
+  spawnDust(w.position.x, w.position.y, 16, 'gold', { speed: [80, 260], size: [3, 8] }); sfx.pop(w.position.x); sfx.crash(w.position.x);
+  shake = Math.max(shake, 8);
 }
 
 function checkRules() {
@@ -1893,7 +1905,8 @@ function strokeGrass(pts, closed) {
   ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
   if (closed) ctx.closePath();
-  ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 7; ctx.stroke();
+  ctx.strokeStyle = slime ? '#7CFC00' : '#4caf50'; ctx.lineWidth = slime ? 10 : 7; ctx.stroke();
+  if (slime) { ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 2; ctx.stroke(); }
 }
 function drawPatch(it) {
   const { a, b, d, u, T, inset } = it, len = Math.hypot(b.x - a.x, b.y - a.y);
@@ -2023,6 +2036,7 @@ function drawSdWalls(inset) {
   }
 }
 function drawWheel(w, r, square) {
+  if (w.burst) r *= 0.55;                                       // a burst tyre is a small, flat, scorched ring
   ctx.save();
   ctx.translate(w.position.x, w.position.y); ctx.rotate(w.angle);
   if (square) {                                                 // square wheel: r is half its side
@@ -2448,7 +2462,7 @@ addEventListener('keydown', e => { sfx.ensure(); if (e.code === 'KeyU' && !e.rep
 addEventListener('pointerdown', () => sfx.ensure());
 syncSoundUi();
 
-/* ---------- title page fun: the logo slowly falls to pieces (each letter and each car drops, bounces off the play buttons and the floor, and settles), lies there a while, then springs back together ---------- */
+/* ---------- title page fun: the logo slowly falls to pieces (each letter and each car is a rigid body that drops, tumbles, bounces off the play buttons, the screen edges and each other, and settles), lies there a while, then springs back together ---------- */
 (function titleFun() {
   if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const logo = document.getElementById('logo'), menuEl = document.getElementById('menu'), btns = document.getElementById('menuBtns');
@@ -2457,50 +2471,62 @@ syncSoundUi();
     for (const ch of text) { const s = document.createElement('span'); s.className = 'tp'; s.textContent = ch === ' ' ? ' ' : ch; el.appendChild(s); }
   }
   const cars = [...logo.querySelectorAll('.logoCar')]; for (const c of cars) c.style.display = 'block';
-  // every piece is a circle in the physics: x, y, r are its offset from home (and spin), cx0, cy0 its home centre, rad its size
-  const pieces = [...logo.querySelectorAll('.tp'), ...cars, document.getElementById('ver')].map(el => ({ el, x: 0, y: 0, r: 0, vx: 0, vy: 0, vr: 0, cx0: 0, cy0: 0, rad: 10, state: 'home', at: 0, fromX: 0, fromY: 0, fromR: 0 }));
-  let phase = 'whole', phaseAt = performance.now(), last = phaseAt, order = [];
+  const tEngine = Engine.create({ positionIterations: 8, velocityIterations: 6 });   // its own little physics world, separate from the game
+  tEngine.gravity.scale = 0.0017;
+  // x, y, r: how far the piece has moved and turned from home (what is drawn); body: its rigid body while it is falling; cx0, cy0: its home centre
+  const pieces = [...logo.querySelectorAll('.tp'), ...cars, document.getElementById('ver')].map(el => ({ el, x: 0, y: 0, r: 0, body: null, cx0: 0, cy0: 0, w: 0, h: 0, state: 'home', at: 0, fromX: 0, fromY: 0, fromR: 0 }));
+  let phase = 'whole', phaseAt = performance.now(), last = phaseAt, acc = 0, order = [], statics = [];
   const set = p => { p.el.style.transform = p.state === 'home' ? '' : 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) rotate(' + p.r.toFixed(3) + 'rad)'; };
-  function collide(p, rects) {                                              // circle against the screen edges and the play buttons
-    const cx = p.cx0 + p.x, cy = p.cy0 + p.y, rad = p.rad;
-    const push = (nx, ny, depth) => {
-      p.x += nx * depth; p.y += ny * depth;
-      const vn = p.vx * nx + p.vy * ny;
-      if (vn < 0) { const e = vn < -80 ? 0.45 : 0; p.vx -= (1 + e) * vn * nx; p.vy -= (1 + e) * vn * ny; const tx = -ny, ty = nx, vt = p.vx * tx + p.vy * ty; p.vx -= vt * 0.08 * tx; p.vy -= vt * 0.08 * ty; p.vr *= 0.8; }
-    };
-    if (cy + rad > innerHeight - 6) push(0, -1, cy + rad - (innerHeight - 6));
-    if (cx - rad < 4) push(1, 0, 4 - (cx - rad));
-    if (cx + rad > innerWidth - 4) push(-1, 0, cx + rad - (innerWidth - 4));
-    for (const b of rects) {
-      const qx = Math.max(b.left, Math.min(cx, b.right)), qy = Math.max(b.top, Math.min(cy, b.bottom));
-      let dx = cx - qx, dy = cy - qy, d = Math.hypot(dx, dy);
-      if (d >= rad) continue;
-      if (d < 0.001) { dx = 0; dy = -1; d = 0; push(0, -1, rad + (cy - b.top)); continue; }   // centre inside the button: lift straight out of the top
-      push(dx / d, dy / d, rad - d);
-    }
+  function clearWorld() {
+    Composite.clear(tEngine.world, false); statics = [];
+    for (const p of pieces) { p.body = null; p.state = 'home'; p.x = p.y = p.r = 0; set(p); }
+  }
+  function buildWorld() {                                                     // the screen edges and the four play buttons are solid
+    const T = 200, W2 = innerWidth, H2 = innerHeight;
+    statics = [
+      Bodies.rectangle(W2 / 2, H2 - 6 + T / 2, W2 + 2 * T, T, { isStatic: true, friction: 0.6 }),
+      Bodies.rectangle(4 - T / 2, H2 / 2, T, H2 * 4, { isStatic: true }),
+      Bodies.rectangle(W2 - 4 + T / 2, H2 / 2, T, H2 * 4, { isStatic: true })
+    ];
+    for (const b of btns.querySelectorAll('button')) { const r = b.getBoundingClientRect(); statics.push(Bodies.rectangle(r.left + r.width / 2, r.top + r.height / 2, r.width, r.height, { isStatic: true, friction: 0.6, chamfer: { radius: 14 } })); }
+    Composite.add(tEngine.world, statics);
+  }
+  function release(p) {
+    const w = Math.max(10, p.w * (p.el.tagName === 'svg' ? 0.9 : 0.8)), h = Math.max(10, p.h * (p.el.tagName === 'svg' ? 0.7 : 0.8));
+    p.body = Bodies.rectangle(p.cx0, p.cy0, w, h, { restitution: 0.4, friction: 0.5, frictionAir: 0.004, density: p.el.tagName === 'svg' ? 0.002 : 0.001, chamfer: { radius: Math.min(w, h) * 0.2 } });
+    Body.setVelocity(p.body, { x: rand(-1.5, 1.5), y: rand(-2, 0) }); Body.setAngularVelocity(p.body, rand(-0.06, 0.06));
+    Composite.add(tEngine.world, p.body); p.state = 'fall';
   }
   function frame(now) {
     requestAnimationFrame(frame);
-    const dt = Math.max(0, Math.min(0.033, (now - last) / 1000)); last = Math.max(last, now);
-    if (menuEl.classList.contains('hidden')) { phase = 'whole'; phaseAt = now; for (const p of pieces) { p.state = 'home'; set(p); } return; }
+    const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); last = Math.max(last, now);
+    if (menuEl.classList.contains('hidden')) { if (phase !== 'whole' || statics.length) clearWorld(); phase = 'whole'; phaseAt = now; return; }
     if (phase === 'whole' && now - phaseAt > 5000) {                          // start falling apart: release the pieces one by one in a random order
-      phase = 'falling'; phaseAt = now; order = pieces.map((p, i) => i).sort(() => Math.random() - 0.5);
-      for (const p of pieces) { const b = p.el.getBoundingClientRect(); p.cx0 = b.left + b.width / 2; p.cy0 = b.top + b.height / 2; p.rad = Math.max(8, Math.min(b.width, b.height) * (p.el.tagName === 'svg' ? 0.5 : 0.45)); }
+      phase = 'falling'; phaseAt = now; acc = 0; order = pieces.map((p, i) => i).sort(() => Math.random() - 0.5);
+      for (const p of pieces) { const b = p.el.getBoundingClientRect(); p.cx0 = b.left + b.width / 2; p.cy0 = b.top + b.height / 2; p.w = b.width; p.h = b.height; }
+      buildWorld();
     }
     if (phase === 'falling') {
       const n = Math.min(order.length, Math.floor((now - phaseAt) / 220));
-      for (let i = 0; i < n; i++) { const p = pieces[order[i]]; if (p.state === 'home') { p.state = 'fall'; p.vx = rand(-90, 90); p.vy = rand(-120, 0); p.vr = rand(-2.5, 2.5); } }
+      for (let i = 0; i < n; i++) { const p = pieces[order[i]]; if (p.state === 'home') release(p); }
       if (n === order.length && now - phaseAt > order.length * 220 + 3000) { phase = 'lying'; phaseAt = now; }
     }
-    if (phase === 'lying' && now - phaseAt > 1500) { phase = 'returning'; phaseAt = now; for (const p of pieces) { p.state = 'back'; p.at = now; p.fromX = p.x; p.fromY = p.y; p.fromR = p.r; } }
-    const rects = [...btns.querySelectorAll('button')].map(b => b.getBoundingClientRect());
+    if (phase === 'lying' && now - phaseAt > 1500) {                          // time to re-form: take the pieces out of the physics and ease them home
+      phase = 'returning'; phaseAt = now;
+      for (const p of pieces) {
+        p.state = 'back'; p.at = now; p.fromX = p.x; p.fromY = p.y; p.fromR = Math.atan2(Math.sin(p.r), Math.cos(p.r));
+        if (p.body) { Composite.remove(tEngine.world, p.body); p.body = null; }
+      }
+      Composite.remove(tEngine.world, statics); statics = [];
+    }
+    if (phase === 'falling' || phase === 'lying') {
+      acc += dt;
+      for (let i = 0; acc >= 1 / 60 && i < 4; i++, acc -= 1 / 60) Engine.update(tEngine, 1000 / 60);
+      if (acc > 0.1) acc = 0;
+    }
     for (const p of pieces) {
-      if (p.state === 'fall') {
-        p.vy += 1700 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
-        collide(p, rects);
-        if (Math.abs(p.vy) < 20 && Math.abs(p.vx) > 2) p.vx *= 0.97;
-        set(p);
-      } else if (p.state === 'back') {                                       // spring home: ease out with a little overshoot, and untwist
+      if (p.state === 'fall' && p.body) { p.x = p.body.position.x - p.cx0; p.y = p.body.position.y - p.cy0; p.r = p.body.angle; set(p); }
+      else if (p.state === 'back') {                                         // spring home: ease out with a little overshoot, and untwist
         const k = Math.min(1, (now - p.at) / 1100), e = 1 - Math.pow(1 - k, 3) + Math.sin(k * Math.PI) * 0.06;
         p.x = p.fromX * (1 - e); p.y = p.fromY * (1 - e); p.r = p.fromR * (1 - e);
         if (k >= 1) { p.state = 'home'; p.x = p.y = p.r = 0; }
