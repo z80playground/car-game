@@ -101,7 +101,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 <script>
-const VERSION = 8;                                 // bump by one with every change to the game
+const VERSION = 9;                                 // bump by one with every change to the game
 document.getElementById('ver').textContent = 'v' + VERSION;
 const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
 
@@ -145,6 +145,7 @@ const ROUND_MODS = [
   { id: 'hammer', name: 'HAMMER TIME!  Blue: C   Red: /' },
   { id: 'fly', name: 'FLYING CARS! HOLD A KEY TO FLY THE WAY YOU ARE POINTING' },
   { id: 'glue', name: 'GLUE TYRES! STICK TO ANYTHING' },
+  { id: 'legs', name: 'LEGS INSTEAD OF WHEELS! RUN, CARS, RUN!', wheelScale: 1.4 },
   { id: 'chickens', name: 'CHICKEN RAIN! BAWK BAWK BAWK!', rain: { emoji: '🐔', r: [20, 28], density: 0.0006, rest: 0.5, every: [450, 850], max: 14 } },
   { id: 'pianos', name: 'FALLING PIANOS! WATCH OUT FOR THE MUSIC', rain: { emoji: '🎹', r: [28, 36], density: 0.006, rest: 0.1, every: [1200, 2000], max: 6 } },
   { id: 'cows', name: 'COW STAMPEDE FROM THE SKY! MOOOO', rain: { emoji: '🐄', r: [32, 42], density: 0.003, rest: 0.2, every: [1800, 2800], max: 5 } },
@@ -158,10 +159,12 @@ const ROUND_MODS = [
 ];
 const GLUE = { pull: 2.2 };       // glue tyres: how hard a wheel on any surface is pulled into it (x gravity), enough to cling to walls and ceilings
 const FLY = { hover: 0.62, thrust: 1.5, maxSpeed: 11, drag: 0.996, ceiling: 100, level: 0.012, pitch: 0.5 };   // flying cars: share of gravity cancelled, thrust (x gravity) along the nose, top speed (px per step), air drag, soft ceiling (px from the top), how fast the car swings to its pitch, and the nose-up pitch (radians) while a key is held
+// The rain rounds (things falling from the sky) are only taken 3 times in 10 when they come up, because they get boring quickly.
+const pickMod = () => { for (let i = 0; i < 6; i++) { const m = pick(ROUND_MODS); if (!m.rain || Math.random() < 0.3) return m; } return pick(ROUND_MODS.filter(m => !m.rain)); };
 const WIND_ACCEL = 0.0005;        // gale strength (px per ms squared; gravity is about 0.00135)
 
 const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');                    // (let: drawTerrainBites briefly draws the ground onto a second canvas)
 
 const CARS = {
   blue: { name: 'Blue', color: '#2f7bff', dark: '#1b4fb5', acw: 'KeyZ',   cw: 'KeyX',   hammer: 'KeyC',   group: -1, dir: 1 },
@@ -414,7 +417,7 @@ const liftGap = () => WHEEL_R + 7 + WHEEL_Y;     // design-centre height above a
 // straights[] (straight stretches that surface patches can sit on), rotors[], ringPts, ringFn, spawn: { blue, red } }
 let L = null;
 let lastLevelId = null, forceLevelId = null;
-const newLevel = def => ({ id: def.id, name: def.name, bg: 'sky', bare: !!def.bare, items: [], samples: [], straights: [], rotors: [], movers: [], pickups: [], props: [], seesaws: [], time: 0, spawn: null, ringFn: null, ringPts: null, extras: [] });
+const newLevel = def => ({ id: def.id, name: def.name, bg: 'sky', bare: !!def.bare, items: [], samples: [], straights: [], rotors: [], movers: [], pickups: [], props: [], seesaws: [], time: 0, spawn: null, ringFn: null, ringPts: null, extras: [], bites: [], flag: null, mouse: null, rotOn: false, rotNext: 0 });
 
 // Is a point in open air (not inside an island, outside the ring, or under the ground)?
 function insidePoly(pts, x, y) {
@@ -1180,11 +1183,11 @@ function newRound() {
   roundNo++;
   roundMod = null; wind = null; drunk = null; meteorNext = 0; bird = null; fun = null; roo = null; popups = [];
   engine.gravity.x = 0;
-  lava = Math.random() < 0.25;                                        // about one round in four the water is boiling lava
-  slime = Math.random() < 0.15;                                       // and about one in seven the floor is slimy all over
+  lava = Math.random() < 0.5;                                         // about one round in two the water is boiling lava
+  slime = Math.random() < 0.03;                                       // and very rarely the floor is slimy all over
   rooAt = Math.random() < 0.12 ? 1 : 0;                                // and now and then a kangaroo bounds in (1 = decide when, once the round starts)
   if (forceModId) roundMod = { ...ROUND_MODS.find(m => m.id === forceModId) };          // (for testing)
-  else if (roundNo >= nextPickupRound) { roundMod = { ...pick(ROUND_MODS) }; nextPickupRound = roundNo + randInt(3, 5); }
+  else if (roundNo >= nextPickupRound) { roundMod = { ...pickMod() }; nextPickupRound = roundNo + randInt(3, 5); }
   if (roundMod && roundMod.id === 'wind') { wind = { dir: pick([-1, 1]) }; roundMod.name += wind.dir > 0 ? ' >>>' : ' <<<'; }
   if (roundMod && roundMod.id === 'drunk') drunk = { flipped: false, next: clock + 3000 };
   applyGravity();
@@ -1194,11 +1197,13 @@ function newRound() {
   };
   trailerLen = opts.trailer ? 180 : 0; spawnK = opts.carScale;
   spawnEndX = opts.threeWheel ? 100 : 62; spawnWheelX = opts.threeWheel ? [84, 0, -84] : opts.tall ? [62, -62] : [44, -44];
+  const fxRoll = { flag: Math.random() < 0.3, bombs: Math.random() < 0.25, rot: Math.random() < 0.12, mouse: Math.random() < 0.12 };   // level events: a flag to grab, time bombs, a rotting level, a hungry mouse
   const prevLast = lastLevelId, circleGlue = Math.random() < 0.4;      // on the Circle, two rounds in five have green sticky tyres
   for (let attempt = 0; attempt < (trailerLen || spawnK > 1 || spawnEndX > 62 || opts.scale > 1.5 || opts.hammer ? 30 : 8); attempt++) {   // never start a car inside the ground (a trailer makes that harder, so try more): rebuild the level if it would
     buildLevel(attempt ? L.id : null);
     if (L.bare || Math.random() < 0.3) addPickups();      // power-ups on about one round in three; the bare circle always has rockets
     if (roundMod && roundMod.id === 'storm') makeSlippery();
+    addLevelFx(fxRoll);
     if (slime) { makeSlippery(0.04); L.extras.push('slimy floor'); }
     if (circleGlue && L.id === 'circle') L.extras.push('green sticky tyres');
     if (roundMod && roundMod.id === 'beach') for (let i = 0; i < 4; i++) { const p = addBall(rand(200, W - 200) , -90 - i * 150, rand(62, 78), 'beach'); Body.setVelocity(p.body, { x: rand(-1, 1), y: 0 }); }   // huge beach balls drop in from above
@@ -1208,6 +1213,7 @@ function newRound() {
     };
     if (roundMod && roundMod.id === 'wings') for (const id in cars) cars[id].wings = true;
     if (roundMod && roundMod.id === 'fly') for (const id in cars) cars[id].flier = true;
+    if (roundMod && roundMod.id === 'legs') for (const id in cars) for (const w of cars[id].wheels) w.legs = true;
     if ((roundMod && roundMod.id === 'glue') || (circleGlue && L.id === 'circle')) for (const id in cars) { cars[id].glue = true; for (const w of cars[id].wheels) w.glue = true; }
     if (opts.hammer) for (const id in cars) addHammer(cars[id]);
     if (!carsOverlapTerrain()) break;
@@ -1378,6 +1384,13 @@ Events.on(engine, 'beforeUpdate', () => {
     sillyRounds();
   }
   if (state === 'playing' && rooAt) stepRoo();
+  if (state === 'playing') stepLevelFx();
+  for (const id in cars) { const c = cars[id];
+    if (c.glueUntil && clock > c.glueUntil) { c.glue = false; c.glueUntil = 0; for (const w of c.wheels) w.glue = false; }          // the flag's sticky-tyre bonus runs out
+    if (clock < (c.flipUntil || 0) && state === 'playing') {                                                                         // a popped bubble turns the car back over: swing it upright
+      const lvl = Math.atan2(Math.sin(c.body.angle), Math.cos(c.body.angle));
+      Body.setAngularVelocity(c.body, (c.body.angularVelocity - lvl * 0.02) * 0.9);
+    } }
   if (bird && state === 'playing') stepBird(STEP / 1000);
   for (const p of L.props) {                                          // loose balls and rocks: tidy up any that have gone far away or grown old
     if (!p.gone && (p.body.position.y > H + 300 || p.body.position.x < -300 || p.body.position.x > W + 300 || (p.life && clock - p.born > p.life))) { p.gone = true; Composite.remove(engine.world, p.body); }
@@ -1549,6 +1562,143 @@ function stepRoo() {                                                 // now and 
   }
 }
 
+/* ---------- level events: a flag to grab, time bombs, a rotting level and a hungry mouse ---------- */
+const isSmall = b => b.bounds.max.x - b.bounds.min.x <= 90 && b.bounds.max.y - b.bounds.min.y <= 90;     // the ground is made of small pieces; only those can be eaten
+function findSpots(count, lift, sep) {                              // places above the ground (or inside a ring) that are clear and away from the starting cars
+  const spots = [];
+  for (let i = 0; i < 400 && spots.length < count; i++) {
+    const q = pick(L.samples); let x = q.x, y = q.y - lift;
+    if (L.ringFn) { const d = Math.hypot(CX - q.x, CY - q.y) || 1; x = q.x + (CX - q.x) / d * (lift + 10); y = q.y + (CY - q.y) / d * (lift + 10); }
+    if (x < 90 || x > W - 90 || y < 90 || y > WATER_Y - 40) continue;
+    if (!freeAir(x, y) || nearSpawn(x, y, 170) || spots.some(sp => Math.hypot(sp.x - x, sp.y - y) < sep)) continue;
+    if (L.rotors.some(r => Math.hypot(r.pos.x - x, r.pos.y - y) < r.len / 2 + 40)) continue;
+    spots.push({ x, y, gx: q.x, gy: q.y });
+  }
+  return spots;
+}
+function biteSpot() {                                               // a bit of eatable ground, away from the starting cars
+  for (let i = 0; i < 200; i++) {
+    const q = pick(L.samples);
+    if (q.x < 60 || q.x > W - 60 || nearSpawn(q.x, q.y, 150)) continue;
+    if (Matter.Query.region(groundBodies(), { min: { x: q.x - 18, y: q.y - 18 }, max: { x: q.x + 18, y: q.y + 18 } }).some(isSmall)) return q;
+  }
+  return null;
+}
+function eatAt(x, y, r) {                                           // take the ground out of the physics inside a circle (it is cut out of the picture by drawTerrainBites)
+  for (const b of groundBodies()) {
+    if (!b.isStatic || !isSmall(b)) continue;
+    const dx = b.position.x - x, dy = b.position.y - y;
+    if (dx * dx + dy * dy < (r + 8) * (r + 8)) Composite.remove(engine.world, b);
+  }
+}
+function addBite(x, y, r, maxR = r) { if (L.bites.length < 70) L.bites.push({ x, y, r, maxR, eaten: 0 }); eatAt(x, y, r); }
+function addLevelFx(roll) {
+  if (roll.flag) { const s = findSpots(1, 55, 0)[0]; if (s) { L.flag = { x: s.x, y: s.y, baseX: s.gx, baseY: s.gy, taken: false }; L.extras.push('flag'); } }
+  if (roll.bombs) {
+    const sp = findSpots(randInt(3, 5), 30, 150);
+    for (const s of sp) { const p = addBall(s.x, s.y, 15, 'emoji', { density: 0.003, rest: 0.25, emoji: '\u{1F4A3}' }); p.bomb = true; }
+    if (sp.length) L.extras.push('time bombs');
+  }
+  if (roll.rot) { L.rotOn = true; L.rotNext = 0; L.extras.push('rotting level'); }
+  if (roll.mouse) { const q = biteSpot(); if (q) { L.mouse = { x: q.x, y: q.y, tx: q.x, ty: q.y, dir: Math.random() < 0.5 ? 1 : -1, bite: 0, start: 0 }; L.extras.push('hungry mouse'); } }
+}
+function flagBonus(c, id, f) {
+  const kind = pick(['invincible', 'turbo', 'sticky', 'shield']), who = CARS[id].name;
+  if (kind === 'invincible') { c.invulnUntil = clock + 10000; popup(f.x, f.y - 60, who + ': INVINCIBLE FOR 10 SECONDS!', '#ffe066', 2400, 28); }
+  else if (kind === 'turbo') { c.boostUntil = clock + 10000; popup(f.x, f.y - 60, who + ': TURBO FOR 10 SECONDS!', '#ffb347', 2400, 28); }
+  else if (kind === 'sticky') { c.glue = true; c.glueUntil = clock + 10000; for (const w of c.wheels) w.glue = true; popup(f.x, f.y - 60, who + ': STICKY TYRES FOR 10 SECONDS!', '#7CFC00', 2400, 28); }
+  else { c.shield = true; popup(f.x, f.y - 60, who + ': BUBBLE SHIELD!', '#9be7ff', 2400, 28); }
+  sfx.chime('boost', f.x); sfx.chime('shield', f.x);
+  spawnDust(f.x, f.y, 18, 'gold', { speed: [80, 260], size: [4, 9] }); shake = Math.max(shake, 5);
+}
+function stepLevelFx() {
+  const dt = STEP / 1000;
+  const f = L.flag;
+  if (f && !f.taken) for (const id in cars) {
+    const c = cars[id], p = centreOf(c);
+    if (Math.hypot(p.x - f.x, p.y - f.y) < 80 * c.carScale || Math.hypot(c.head.position.x - f.x, c.head.position.y - f.y) < 55 * c.carScale) { f.taken = true; flagBonus(c, id, f); break; }
+  }
+  for (const p of L.props) {                                        // ticking time bombs: they flash faster and faster, then go off
+    if (!p.bomb || p.gone) continue;
+    if (!p.fuse) { p.fuse = clock + rand(5000, 14000); p.tick = clock; }
+    const left = p.fuse - clock;
+    if (clock >= p.tick) { p.tick = clock + Math.max(120, left / 6); p.flash = clock; sfx.chime('shield', p.body.position.x); }
+    if (left <= 0) {
+      p.gone = true; Composite.remove(engine.world, p.body);
+      const x = p.body.position.x, y = p.body.position.y;
+      sfx.boom(x); blastAt(x, y, 220, 75, 1, 16); addBite(x, y, 42);
+    }
+  }
+  if (L.rotOn) {                                                    // rot: holes appear all over the level and slowly widen
+    if (clock >= L.rotNext) { L.rotNext = clock + rand(1000, 1800); const q = biteSpot(); if (q) L.bites.push({ x: q.x, y: q.y, r: 4, maxR: rand(40, 80), eaten: 0 }); }
+    for (const b of L.bites) if (b.r < b.maxR) { b.r += 7 * dt; if (b.r - b.eaten >= 4) { eatAt(b.x, b.y, b.r); b.eaten = b.r; } }
+  }
+  const m = L.mouse;
+  if (m) {                                                          // the mouse scampers about the ground, nibbling a hole as it goes
+    if (!m.start) m.start = clock + 2000;
+    if (clock >= m.start) {
+      const d = Math.hypot(m.tx - m.x, m.ty - m.y);
+      if (d < 4) {
+        const near = L.samples.filter(q => { const dd = Math.hypot(q.x - m.x, q.y - m.y); return dd > 50 && dd < 140 && q.x > 40 && q.x < W - 40; });
+        const nxt = pick(near.filter(q => (q.x - m.x) * m.dir > 0)) || pick(near);
+        if (nxt) { m.tx = nxt.x; m.ty = nxt.y; if (Math.abs(nxt.x - m.x) > 5) m.dir = Math.sign(nxt.x - m.x); } else m.dir = -m.dir;
+      } else { const k = Math.min(70 * dt, d) / d; m.x += (m.tx - m.x) * k; m.y += (m.ty - m.y) * k; }
+      if (clock >= m.bite) { m.bite = clock + 200; addBite(m.x, m.y + 6, 24); if (Math.random() < 0.12) popup(m.x, m.y - 40, pick(['NOM!', 'CHOMP!', 'MUNCH!']), '#ffd9b0', 800, 22); }
+    }
+  }
+}
+function drawFlag(now) {
+  const f = L.flag;
+  if (!f || f.taken) return;
+  const dx = f.x - f.baseX, dy = f.y - f.baseY, d = Math.hypot(dx, dy) || 1, tx = f.baseX + dx / d * 80, ty = f.baseY + dy / d * 80;
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(f.baseX, f.baseY); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(f.baseX, f.baseY); ctx.lineTo(tx, ty); ctx.stroke();
+  ctx.fillStyle = '#ffd23f'; ctx.beginPath(); ctx.arc(tx, ty, 5, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(tx, ty);                              // the cloth ripples in the breeze
+  const pts = [];
+  for (let i = 0; i <= 6; i++) pts.push([tx + 6 + i * 7, ty + 2 + Math.sin(now / 170 + i * 0.8) * 3.5 * (i / 6)]);
+  for (const [x, y] of pts) ctx.lineTo(x, y);
+  for (let i = 6; i >= 0; i--) ctx.lineTo(pts[i][0], pts[i][1] + 24);
+  ctx.closePath(); ctx.fillStyle = '#e11d48'; ctx.fill(); ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#ffd23f'; ctx.font = '16px "Segoe UI Emoji", "Apple Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u2605', tx + 27, ty + 14);
+  const a = 0.5 + 0.5 * Math.sin(now / 250); ctx.strokeStyle = 'rgba(255,225,102,' + (0.25 + 0.35 * a) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, 26 + 5 * a, 0, 7); ctx.stroke();   // a glint so it can be found
+  ctx.restore();
+}
+function drawMouse() {
+  const m = L.mouse;
+  if (!m || !m.start || clock < m.start) return;
+  ctx.save(); ctx.translate(m.x, m.y - 14); ctx.scale(-m.dir, 1);
+  ctx.rotate(Math.sin(clock / 70) * 0.12);
+  ctx.font = '34px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u{1F42D}', 0, 0);
+  ctx.restore();
+}
+const offCanvas = document.createElement('canvas');
+function drawTerrainBites() {                                       // the ground, with a hole cut out wherever it has been eaten or has rotted away
+  if (!L.bites.length) return drawTerrain();
+  if (offCanvas.width !== canvas.width || offCanvas.height !== canvas.height) { offCanvas.width = canvas.width; offCanvas.height = canvas.height; }
+  const oc = offCanvas.getContext('2d'), T = ctx.getTransform(), main = ctx;
+  oc.setTransform(1, 0, 0, 1, 0, 0); oc.clearRect(0, 0, offCanvas.width, offCanvas.height); oc.setTransform(T);
+  ctx = oc;
+  try { drawTerrain(); } finally { ctx = main; }
+  oc.globalCompositeOperation = 'destination-out';
+  for (const b of L.bites) { oc.beginPath(); oc.arc(b.x, b.y, b.r, 0, 7); oc.fill(); }
+  oc.globalCompositeOperation = 'source-over';
+  main.save(); main.setTransform(1, 0, 0, 1, 0, 0); main.drawImage(offCanvas, 0, 0); main.restore();
+}
+function drawLegs(w, r) {                                           // legs instead of wheels: two legs per wheel, the feet going round the rim
+  ctx.save(); ctx.translate(w.position.x, w.position.y);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let k = 0; k < 2; k++) {
+    const a = w.angle + k * Math.PI, fx = Math.cos(a) * r, fy = Math.sin(a) * r, d = Math.hypot(fx, fy) || 1, bone = r * 0.72, h = Math.sqrt(Math.max(0, bone * bone - d * d / 4));
+    let px = -fy / d, py = fx / d; if (px < 0) { px = -px; py = -py; }       // the knee always bends forwards
+    const kx = fx / 2 + px * h, ky = fy / 2 + py * h;
+    for (const [col, lw] of [['#1b2433', r * 0.42], [k ? '#e0b48a' : '#f2c9a0', r * 0.28]]) { ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke(); }
+    ctx.fillStyle = '#2a2f3a'; ctx.strokeStyle = '#1b2433'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(fx + 3, fy + r * 0.1, r * 0.34, r * 0.2, 0, 0, 7); ctx.fill(); ctx.stroke();   // a shoe
+  }
+  ctx.fillStyle = '#6b7280'; ctx.beginPath(); ctx.arc(0, 0, r * 0.2, 0, 7); ctx.fill();
+  ctx.restore();
+}
 function burstTyre(c, w) {                                           // the tyre pops: it shrinks to a flat, floppy rubber ring that no longer drives
   w.burst = true; w.glue = false;
   Body.scale(w, 0.55, 0.55);
@@ -1668,6 +1818,7 @@ function headHit(id) {
     sfx.pop(c.head.position.x);
     spawnDust(c.head.position.x, c.head.position.y, 16, 'shield', { speed: [60, 200], size: [4, 8] });
     shake = Math.max(shake, 7);
+    if (Math.cos(c.body.angle) < 0) { shove(c, 0, -8); c.flipUntil = clock + 1500; popup(c.head.position.x, c.head.position.y - 50, 'WHEEE!', '#9be7ff', 900, 28); }   // upside down: the bubble bursts and flips the car upright
     return;
   }
   lose(id, 'head');
@@ -1734,7 +1885,7 @@ function blastAt(x, y, radius, killR, kickScale, shakeAmount) {
       const kick = (4 + 18 * (1 - dist / radius)) * kickScale, ux = dx / dist, uy = dy / dist - 0.35;
       for (const bd of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(bd); Body.setVelocity(bd, { x: v.x + ux * kick, y: v.y + uy * kick }); }
     }
-    if (Math.hypot(c.head.position.x - x, c.head.position.y - y) < killR + c.headR) lose(id, 'bomb');
+    if (Math.hypot(c.head.position.x - x, c.head.position.y - y) < killR + c.headR && clock >= (c.invulnUntil || 0)) lose(id, 'bomb');
   }
 }
 
@@ -1971,6 +2122,7 @@ function drawTerrain() {
         if (it === roo) ctx.rotate(-b.angle);
         ctx.font = Math.round(r * 2.1) + 'px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         if (it === roo && b.velocity.x > 0) ctx.scale(-1, 1);
+        if (it.bomb && it.fuse) { const left = it.fuse - clock, on = left < 2500 ? Math.floor(clock / 90) % 2 : clock - it.flash < 140; if (on) { ctx.fillStyle = 'rgba(255,50,30,0.55)'; ctx.beginPath(); ctx.arc(0, 0, r * 1.7, 0, 7); ctx.fill(); } }
         ctx.fillText(it.emoji, 0, r * 0.08);
       } else if (it.kind === 'rock') {
         const v = Math.hypot(b.velocity.x, b.velocity.y);
@@ -2036,7 +2188,18 @@ function drawSdWalls(inset) {
   }
 }
 function drawWheel(w, r, square) {
-  if (w.burst) r *= 0.55;                                       // a burst tyre is a small, flat, scorched ring
+  if (w.burst) {                                                // a burst tyre is just the silver hub, bent so it is not quite round
+    r *= 0.55;
+    ctx.save(); ctx.translate(w.position.x, w.position.y); ctx.rotate(w.angle);
+    ctx.beginPath();
+    for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2, rr = r * (1.05 + 0.2 * Math.sin(i * 2.3 + w.id) - 0.08 * Math.cos(i * 1.1)); ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    ctx.closePath(); ctx.fillStyle = '#d5dbe3'; ctx.fill(); ctx.strokeStyle = '#5b6470'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#8a929d'; ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, 7); ctx.fill();
+    ctx.fillStyle = '#5b6470'; for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5; ctx.beginPath(); ctx.arc(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7, r * 0.1, 0, 7); ctx.fill(); }
+    ctx.restore();
+    return;
+  }
+  if (w.legs) return drawLegs(w, r);
   ctx.save();
   ctx.translate(w.position.x, w.position.y); ctx.rotate(w.angle);
   if (square) {                                                 // square wheel: r is half its side
@@ -2122,7 +2285,11 @@ function drawHead(c) {
   drawFace(c.face || faceOf(c));
   ctx.restore();
 }
-function drawShield(c) {                                         // shield bubble round the head
+function drawShield(c) {                                         // shield bubble round the head, and a rainbow ring while invincible
+  if (clock < (c.invulnUntil || 0) && c.invulnUntil - clock > 1300 || (clock < (c.invulnUntil || 0) && Math.floor(clock / 120) % 2)) {
+    ctx.strokeStyle = 'hsla(' + ((clock / 3) % 360).toFixed(0) + ',100%,60%,0.95)'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(0, c.headY, HEAD_R * c.headScale + 11, 0, 7); ctx.stroke();
+  }
   if (!c.shield) return;
   ctx.fillStyle = 'rgba(120,220,255,0.18)'; ctx.strokeStyle = 'rgba(160,235,255,0.85)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(0, c.headY, (HEAD_R * c.headScale + 7) * (1 + 0.06 * Math.sin(clock / 120)), 0, 7); ctx.fill(); ctx.stroke();
@@ -2290,8 +2457,10 @@ function draw(now) {
   ctx.translate(W / (2 * cam.z) - cam.x, H / (2 * cam.z) - cam.y);
   drawBackground();
   drawMarks(now);
-  drawTerrain();
+  drawTerrainBites();
   drawPickups(now);
+  drawFlag(now);
+  drawMouse();
   for (const id in cars) drawTrailer(cars[id]);
   for (const id in cars) drawCar(cars[id]);
   for (const id in cars) drawHammer(cars[id]);
