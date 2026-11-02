@@ -21,7 +21,8 @@
   #logo .l1 { font: 900 clamp(46px, 9vw, 104px)/1 "Segoe UI Black", "Segoe UI", Arial, sans-serif; letter-spacing: 2px; color: #ffd23f; -webkit-text-stroke: 4px #1b2433; paint-order: stroke fill;
               text-shadow: 0 6px 0 #c2410c, 0 12px 24px #000a; }
   #logo .l2 { font: 900 clamp(28px, 5.4vw, 64px)/1 "Segoe UI Black", "Segoe UI", Arial, sans-serif; letter-spacing: 6px; color: #fff; -webkit-text-stroke: 3px #1b2433; paint-order: stroke fill; text-shadow: 0 5px 0 #2563eb, 0 10px 20px #000a; }
-  #logo svg { width: clamp(220px, 34vw, 400px); height: auto; margin-top: 6px; }
+  #logoCars { display: flex; gap: 6px; margin-top: 6px; }
+  #logo svg { width: clamp(110px, 17vw, 200px); height: auto; }
   #menuMsg { font-size: clamp(22px, 3.4vw, 40px); font-weight: 800; color: #fff; min-height: 1.2em; }
   #menuMsg small { display: block; font-size: 0.5em; font-weight: 600; color: #8b949e; }
   #menuBtns { display: grid; grid-template-columns: repeat(2, minmax(200px, 300px)); gap: 16px; }
@@ -34,7 +35,7 @@
   #menuBtns .easy { background: #16a34a; }
   #menuBtns .medium { background: #d97706; }
   #menuBtns .hard { background: #b91c1c; }
-  @media (max-height: 720px) { #menu { gap: 10px; } #logo svg { width: 190px; } #logo .l1 { font-size: 48px; } #logo .l2 { font-size: 28px; } #menuBtns { gap: 10px; } #menuBtns button { padding: 12px 14px; font-size: 18px; } #menuMsg { font-size: 22px; } }
+  @media (max-height: 720px) { #menu { gap: 10px; } #logo svg { width: 95px; } #logo .l1 { font-size: 48px; } #logo .l2 { font-size: 28px; } #menuBtns { gap: 10px; } #menuBtns button { padding: 12px 14px; font-size: 18px; } #menuMsg { font-size: 22px; } }
   #menuHint { color: #8b949e; font-size: 14px; }
   #help { font-size: 12px; color: #8b949e; }
   #help b { color: #fff; }
@@ -45,25 +46,36 @@
   #tune input[type=range] { width: 120px; accent-color: #4d8dff; }
   #tune output { display: inline-block; min-width: 3.4em; font-variant-numeric: tabular-nums; color: #fff; }
   #tune select, #tune button { background: #21262d; color: #fff; border: 1px solid #30363d; border-radius: 5px; padding: 3px 8px; font: inherit; }
-#ver { position: fixed; right: 6px; bottom: 4px; font: 9px/1 system-ui, sans-serif; color: rgba(255,255,255,0.55); text-shadow: 0 0 2px rgba(0,0,0,0.6); pointer-events: none; user-select: none; }
+#logo .tp { display: inline-block; will-change: transform; }
+  #logo .l2row { display: flex; align-items: flex-end; gap: 10px; }
+  #ver { font: 700 clamp(14px, 1.8vw, 20px)/1 "Segoe UI", Arial, sans-serif; color: #ffd23f; text-shadow: 0 2px 4px #000a; padding-bottom: 6px; user-select: none; }
 </style>
 </head>
 <body>
   <div id="score"><span class="blue">Blue <span id="sBlue">0</span></span><span class="sep">-</span><span class="red"><span id="sRed">0</span> <span id="redName">Red</span></span></div>
   <div id="menu">
     <div id="logo">
-      <span class="l1">ISAAC'S</span><span class="l2">CAR GAME</span>
-      <svg viewBox="0 0 400 130" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <g transform="translate(20 10)">
-          <path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#3b82f6" stroke="#1b2433" stroke-width="5" stroke-linejoin="round"/>
-          <path d="M104 18 L152 18 L176 40 L84 40 Z" fill="#bfe3ff" stroke="#1b2433" stroke-width="4" stroke-linejoin="round"/>
-          <circle cx="132" cy="22" r="11" fill="#ffd9b0" stroke="#1b2433" stroke-width="3"/>
-          <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="60" cy="82" r="12" fill="#cbd5e1"/>
-          <circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="204" cy="82" r="12" fill="#cbd5e1"/>
-        </g>
-        <g transform="translate(300 30) scale(0.55)"><path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#ef4444" stroke="#1b2433" stroke-width="7" stroke-linejoin="round" transform="translate(250 0) scale(-1 1)"/>
-          <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="7"/><circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="7"/></g>
-      </svg>
+      <span class="l1">ISAAC'S</span><span class="l2row"><span class="l2">CAR GAME</span><span id="ver"></span></span>
+      <div id="logoCars">
+        <svg class="logoCar" viewBox="0 0 290 125" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <g transform="translate(20 10)">
+            <path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#3b82f6" stroke="#1b2433" stroke-width="5" stroke-linejoin="round"/>
+            <path d="M104 18 L152 18 L176 40 L84 40 Z" fill="#bfe3ff" stroke="#1b2433" stroke-width="4" stroke-linejoin="round"/>
+            <circle cx="132" cy="22" r="11" fill="#ffd9b0" stroke="#1b2433" stroke-width="3"/>
+            <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="60" cy="82" r="12" fill="#cbd5e1"/>
+            <circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="204" cy="82" r="12" fill="#cbd5e1"/>
+          </g>
+        </svg>
+        <svg class="logoCar" viewBox="0 0 290 125" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <g transform="translate(270 10) scale(-1 1)">
+            <path d="M10 70 L10 52 Q10 44 20 42 L70 38 L98 12 Q104 6 114 6 L160 6 Q170 6 176 14 L196 40 L236 44 Q250 46 250 58 L250 70 Z" fill="#ef4444" stroke="#1b2433" stroke-width="5" stroke-linejoin="round"/>
+            <path d="M104 18 L152 18 L176 40 L84 40 Z" fill="#bfe3ff" stroke="#1b2433" stroke-width="4" stroke-linejoin="round"/>
+            <circle cx="132" cy="22" r="11" fill="#ffd9b0" stroke="#1b2433" stroke-width="3"/>
+            <circle cx="60" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="60" cy="82" r="12" fill="#cbd5e1"/>
+            <circle cx="204" cy="82" r="30" fill="#222" stroke="#1b2433" stroke-width="5"/><circle cx="204" cy="82" r="12" fill="#cbd5e1"/>
+          </g>
+        </svg>
+      </div>
     </div>
     <div id="menuMsg"></div>
     <div id="menuBtns">
@@ -88,9 +100,8 @@
   </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<div id="ver"></div>
 <script>
-const VERSION = 4;                                  // bump by one with every change to the game
+const VERSION = 6;                                 // bump by one with every change to the game
 document.getElementById('ver').textContent = 'v' + VERSION;
 const { Engine, Bodies, Body, Composite, Constraint, Events } = Matter;
 
@@ -132,8 +143,20 @@ const ROUND_MODS = [
   { id: 'wings', name: 'WINGS! HOLD A KEY IN THE AIR TO FLAP' },
   { id: 'bird', name: 'ANGRY BIRD ON THE LOOSE!' },
   { id: 'hammer', name: 'HAMMER TIME!  Blue: C   Red: /' },
-  { id: 'fly', name: 'FLYING CARS! HOLD A KEY TO FLY THE WAY YOU ARE POINTING' }
+  { id: 'fly', name: 'FLYING CARS! HOLD A KEY TO FLY THE WAY YOU ARE POINTING' },
+  { id: 'glue', name: 'GLUE TYRES! STICK TO ANYTHING' },
+  { id: 'chickens', name: 'CHICKEN RAIN! BAWK BAWK BAWK!', rain: { emoji: '🐔', r: [20, 28], density: 0.0006, rest: 0.5, every: [450, 850], max: 14 } },
+  { id: 'pianos', name: 'FALLING PIANOS! WATCH OUT FOR THE MUSIC', rain: { emoji: '🎹', r: [28, 36], density: 0.006, rest: 0.1, every: [1200, 2000], max: 6 } },
+  { id: 'cows', name: 'COW STAMPEDE FROM THE SKY! MOOOO', rain: { emoji: '🐄', r: [32, 42], density: 0.003, rest: 0.2, every: [1800, 2800], max: 5 } },
+  { id: 'ducks', name: 'RUBBER DUCK DELUGE! QUACK QUACK', rain: { emoji: '🦆', r: [16, 26], density: 0.0004, rest: 0.9, every: [300, 650], max: 22 } },
+  { id: 'melons', name: 'WATERMELON SMASH!', rain: { emoji: '🍉', r: [22, 30], density: 0.002, rest: 0.3, every: [800, 1400], max: 8 } },
+  { id: 'disco', name: 'DISCO FEVER! THE CARS CANNOT STOP DANCING' },
+  { id: 'hiccups', name: 'HICCUPS! HIC! HIC! HIC!' },
+  { id: 'seasick', name: 'SEASICK! GRAVITY KEEPS SWAYING' },
+  { id: 'toot', name: 'PARP PARP! THE CARS KEEP TOOTING FORWARDS' },
+  { id: 'achoo', name: 'ACHOO! A GIANT KEEPS SNEEZING' }
 ];
+const GLUE = { pull: 2.2 };       // glue tyres: how hard a wheel on any surface is pulled into it (x gravity), enough to cling to walls and ceilings
 const FLY = { hover: 0.62, thrust: 1.5, maxSpeed: 11, drag: 0.996, ceiling: 100, level: 0.012, pitch: 0.5 };   // flying cars: share of gravity cancelled, thrust (x gravity) along the nose, top speed (px per step), air drag, soft ceiling (px from the top), how fast the car swings to its pitch, and the nose-up pitch (radians) while a key is held
 const WIND_ACCEL = 0.0005;        // gale strength (px per ms squared; gravity is about 0.00135)
 
@@ -146,6 +169,7 @@ const CARS = {
 };
 const REASONS = {
   water: n => `${n}'s head touched the water`,
+  lava:  n => `${n}'s head touched the lava. Ouch!`,
   head:  n => `${n} bumped their head`,
   bomb:  n => `${n} was blown up`,
   out:   n => `${n} left the arena`
@@ -165,7 +189,8 @@ let particles = [], marks = [];
 let waterY = WATER_Y;                                // the water surface; sudden death can raise it
 let sd = null;                                       // sudden death: { kind, start, inset, bodies, bannerUntil }
 let roundNo = 0, nextPickupRound = randInt(3, 5), roundMod = null, wind = null;
-let drunk = null, meteorNext = 0, bird = null;                    // dizzy drivers: { flipped, next }; meteor shower: when the next rock falls
+let drunk = null, meteorNext = 0, bird = null;
+let lava = false, rooAt = 0, roo = null, fun = null, popups = [];   // boiling lava instead of water; the kangaroo (when it arrives and the animal itself); timers for the silly rounds; floating words                    // dizzy drivers: { flipped, next }; meteor shower: when the next rock falls
 let shake = 0;                                       // screen shake amplitude in pixels
 let timeScale = 1, slow = null;                      // slow motion: { start, ms }
 let overAt = 0, overInfo = null, pendingWinner = null;   // end-of-round sequence
@@ -294,7 +319,7 @@ const sfx = (() => {
 
 /* ---------- particles ---------- */
 const SPARK_COLORS = ['#fff7b0', '#ffd23f', '#ff9f1c', '#ff6b1c', '#ffffff'];
-const surfaceRgb = s => s === 'shield' ? '120,220,255' : s === 'ice' ? '235,248,255' : s === 'mud' ? '80,52,30' : s === 'gold' ? '255,200,60' : '196,168,126';
+const surfaceRgb = s => s === 'shield' ? '120,220,255' : s === 'ice' ? '235,248,255' : s === 'mud' ? '80,52,30' : s === 'gold' ? '255,200,60' : s === 'toot' ? '150,200,60' : '196,168,126';
 function spawnSparks(x, y) {
   particles.push({ type: 'flash', x, y, life: 0.15, max: 0.15 });
   for (let i = 0; i < 55; i++) {
@@ -644,10 +669,10 @@ function startSlab(id, o = {}) {
 // Loose, bouncy things the cars can shove about: ball-pit balls, huge beach balls and falling rocks.
 const BALL_COLOURS = ['#ff4d6d', '#ffd23f', '#3fb6ff', '#7bd957', '#ff9f1a', '#c77dff'];
 function addBall(x, y, r, kind = 'ball', o = {}) {
-  const body = Bodies.circle(x, y, r, { friction: 0.05, frictionStatic: 0.05, restitution: kind === 'rock' ? 0.2 : 0.85, density: kind === 'rock' ? 0.004 : kind === 'beach' ? 0.0004 : 0.0007, frictionAir: kind === 'rock' ? 0 : 0.002, label: 'prop' });
+  const body = Bodies.circle(x, y, r, { friction: 0.05, frictionStatic: 0.05, restitution: o.rest !== undefined ? o.rest : kind === 'rock' ? 0.2 : 0.85, density: o.density || (kind === 'rock' ? 0.004 : kind === 'beach' ? 0.0004 : 0.0007), frictionAir: kind === 'rock' ? 0 : 0.002, label: 'prop' });
   body.propKind = kind;
   Composite.add(engine.world, body);
-  const p = { type: 'ball', kind, body, r, color: pick(BALL_COLOURS), born: clock, life: o.life || 0, gone: false };
+  const p = { type: 'ball', kind, body, r, color: pick(BALL_COLOURS), emoji: o.emoji || null, born: clock, life: o.life || 0, gone: false };
   L.props.push(p); L.items.push(p);
   return p;
 }
@@ -939,33 +964,37 @@ function buildCar(id, P0, ang, o = {}) {
   return car;
 }
 
-// A three-wheeler: a long car in two halves joined by a hinge over the middle wheel, with a wheel at each end.
-// The halves are mirror images, so it is the same car whichever way it faces. A spring (see BEND) keeps the joint
-// nearly straight and stops it bending more than a little.
-const BEND = { max: 0.35, k: 2, limitK: 40, damp: 40 };
+// A three-wheeler: a long car in four segments joined by three hinges (one over the middle wheel), with a wheel at each end.
+// The segments are mirror images, so it is the same car whichever way it faces. A spring at every joint (see BEND) keeps
+// the car roughly straight but lets it wobble and snake about.
+const BEND = { max: 0.5, k: 0.5, limitK: 4, damp: 5 };   // (the segments are light, so a stiff or heavily damped spring would be unstable at the fixed physics step)
 function buildCar3(id, P0, ang) {
   const def = CARS[id], d = def.dir, filter = { group: def.group };
   const headY = -10 - HEAD_R;
   const mk = (x, y, w, h, label, density) => Bodies.rectangle(x, y, w, h, { friction: 0.2, density, label });
   const head = Bodies.circle(0, headY, HEAD_R, { friction: 0.1, density: 0.0008, label: 'head' });
   head.isHead = true; head.owner = id;
-  const left = [mk(-48, 0, 96, 20, 'chassis', 0.0025), mk(-82, -3, 32, 26, 'boot', 0.0015), head];
-  const right = [mk(48, 0, 96, 20, 'chassis', 0.0025), mk(82, -3, 32, 26, 'bonnet', 0.0015)];
-  for (const p of [...left, ...right]) p.collisionFilter = filter;
-  const A = Body.create({ parts: left, collisionFilter: filter }), B2 = Body.create({ parts: right, collisionFilter: filter });
-  const offA = { x: -A.position.x, y: -A.position.y }, offB = { x: -B2.position.x, y: -B2.position.y };   // the joint (design origin) relative to each half's centre of gravity
+  const parts = [
+    [mk(-74, 0, 48, 20, 'chassis', 0.0025), mk(-82, -3, 32, 26, 'boot', 0.0015)],
+    [mk(-25, 0, 50, 20, 'chassis', 0.0025), head],
+    [mk(25, 0, 50, 20, 'chassis', 0.0025)],
+    [mk(74, 0, 48, 20, 'chassis', 0.0025), mk(82, -3, 32, 26, 'bonnet', 0.0015)]
+  ];
+  const segs = parts.map(ps => { for (const p of ps) p.collisionFilter = filter; return ps.length === 1 ? ps[0] : Body.create({ parts: ps, collisionFilter: filter }); });   // (Matter ignores a one-part compound)
+  const offs = segs.map(s => ({ x: -s.position.x, y: -s.position.y }));   // the design origin (the middle joint) relative to each segment's centre of gravity
   const cs = Math.cos(ang), sn = Math.sin(ang), rot = (x, y) => ({ x: cs * x - sn * y, y: sn * x + cs * y });
-  for (const [b, off] of [[A, offA], [B2, offB]]) { Body.setAngle(b, ang); const r = rot(off.x, off.y); Body.setPosition(b, { x: P0.x - r.x, y: P0.y - r.y }); }
+  segs.forEach((b, i) => { Body.setAngle(b, ang); const r = rot(offs[i].x, offs[i].y); Body.setPosition(b, { x: P0.x - r.x, y: P0.y - r.y }); });
   const wheels = [], axles = [], wheelHalves = [], wy = WHEEL_Y;
-  for (const [wx, half, off] of [[-84, A, offA], [0, A, offA], [84, B2, offB]]) {       // rear, middle (at the joint) and front wheels
-    const pos = { x: P0.x + cs * wx - sn * wy, y: P0.y + sn * wx + cs * wy };
+  for (const [wx, si] of [[-84, 0], [0, 1], [84, 3]]) {                                  // rear, middle (at the joint) and front wheels
+    const half = segs[si], off = offs[si], pos = { x: P0.x + cs * wx - sn * wy, y: P0.y + sn * wx + cs * wy };
     const w = Bodies.circle(pos.x, pos.y, WHEEL_R, { friction: 2.5, frictionStatic: 0.004, restitution: 0.05, density: 0.004, frictionAir: 0.004, collisionFilter: filter, label: 'wheel' });
     axles.push(Constraint.create({ bodyA: half, pointA: rot(wx + off.x, wy + off.y), bodyB: w, pointB: { x: 0, y: 0 }, length: 0, stiffness: suspStiffness(TUNE.suspension), damping: 0.2 }));
     wheels.push(w); wheelHalves.push(half);
   }
-  const hinge = Constraint.create({ bodyA: A, pointA: rot(offA.x, offA.y), bodyB: B2, pointB: rot(offB.x, offB.y), length: 0, stiffness: 1, damping: 0.1 });
-  Composite.add(engine.world, [A, B2, ...wheels, ...axles, hinge]);
-  return { id, def, dir: d, body: A, body2: B2, bodies: [A, B2], wheelHalves, head, wheels, axles, hinge, off: offA, off2: offB,
+  const hinges = [-50, 0, 50].map((jx, i) => Constraint.create({ bodyA: segs[i], pointA: rot(jx + offs[i].x, offs[i].y), bodyB: segs[i + 1], pointB: rot(jx + offs[i + 1].x, offs[i + 1].y), length: 0, stiffness: 1, damping: 0.1 }));
+  Composite.add(engine.world, [...segs, ...wheels, ...axles, ...hinges]);
+  // body and body2 are the two segments either side of the middle joint (the car's centre); the outer ones are only in segs and bodies
+  return { id, def, dir: d, body: segs[1], body2: segs[2], segs, offs, bodies: segs, wheelHalves, head, wheels, axles, hinges, off: offs[1], off2: offs[2],
            wheelR: WHEEL_R, headR: HEAD_R, headY, headScale: 1, carScale: 1, square: false, torqueMul: 1, trailer: null, facing: d, flipX: d };
 }
 // The middle of a car (the joint, for a three-wheeler): used for camera framing, pick-ups, blasts and the out-of-arena test.
@@ -1140,7 +1169,7 @@ function carsOverlapTerrain() {
   const solids = groundBodies();
   return Object.values(cars).some(c => carBodies(c).some(part => Matter.Query.collides(part, solids).length > 0)) || trailersUnsupported();
 }
-const removeCar = c => Composite.remove(engine.world, [...(c.hammer ? [c.hammer.body] : []), ...c.bodies, ...c.wheels, ...c.axles, ...(c.hinge ? [c.hinge] : []), ...(c.trailer ? [c.trailer.body, ...c.trailer.wheels, ...c.trailer.cons, c.trailer.hitch, ...(c.trailer.bomb ? [c.trailer.bomb] : [])] : [])]);
+const removeCar = c => Composite.remove(engine.world, [...(c.hammer ? [c.hammer.body] : []), ...c.bodies, ...c.wheels, ...c.axles, ...(c.hinges || []), ...(c.trailer ? [c.trailer.body, ...c.trailer.wheels, ...c.trailer.cons, c.trailer.hitch, ...(c.trailer.bomb ? [c.trailer.bomb] : [])] : [])]);
 function newRound() {
   losers.clear();
   particles = []; marks = [];
@@ -1149,7 +1178,10 @@ function newRound() {
   fadeIn = celebrate ? { color: CARS[celebrate.id].color, start: clock } : null;   // fade back from the winner's colour
   celebrate = null;
   roundNo++;
-  roundMod = null; wind = null; drunk = null; meteorNext = 0; bird = null;
+  roundMod = null; wind = null; drunk = null; meteorNext = 0; bird = null; fun = null; roo = null; popups = [];
+  engine.gravity.x = 0;
+  lava = Math.random() < 0.25;                                        // about one round in four the water is boiling lava
+  rooAt = Math.random() < 0.3 ? 1 : 0;                                // and now and then a kangaroo bounds in (1 = decide when, once the round starts)
   if (forceModId) roundMod = { ...ROUND_MODS.find(m => m.id === forceModId) };          // (for testing)
   else if (roundNo >= nextPickupRound) { roundMod = { ...pick(ROUND_MODS) }; nextPickupRound = roundNo + randInt(3, 5); }
   if (roundMod && roundMod.id === 'wind') { wind = { dir: pick([-1, 1]) }; roundMod.name += wind.dir > 0 ? ' >>>' : ' <<<'; }
@@ -1173,6 +1205,7 @@ function newRound() {
     };
     if (roundMod && roundMod.id === 'wings') for (const id in cars) cars[id].wings = true;
     if (roundMod && roundMod.id === 'fly') for (const id in cars) cars[id].flier = true;
+    if (roundMod && roundMod.id === 'glue') for (const id in cars) { cars[id].glue = true; for (const w of cars[id].wheels) w.glue = true; }
     if (opts.hammer) for (const id in cars) addHammer(cars[id]);
     if (!carsOverlapTerrain()) break;
     rebuilds++;
@@ -1280,7 +1313,7 @@ Events.on(engine, 'collisionActive', e => {    // a head still touching somethin
 
 // Which cars (and which wheels, on what ground) were touching the terrain on the previous step.
 function scanContacts() {
-  const touching = new Set(), wheelGround = new Map(), crumbleHits = new Set();
+  const touching = new Set(), wheelGround = new Map(), crumbleHits = new Set(), wheelContact = new Map();
   for (const pair of engine.pairs.list) {
     if (!pair.isActive) continue;
     const a = pair.bodyA, b = pair.bodyB;
@@ -1289,12 +1322,12 @@ function scanContacts() {
     for (const id in cars) {
       const c = cars[id];
       if (c.bodies.includes(other.parent)) touching.add(id);
-      else if (c.wheels.includes(other)) { touching.add(id); wheelGround.set(other, g); }
+      else if (c.wheels.includes(other)) { touching.add(id); wheelGround.set(other, g); const sp = pair.collision.supports[0]; if (sp) wheelContact.set(other, sp); }
       else continue;
       if (g.slab) crumbleHits.add(g.slab);
     }
   }
-  return { touching, wheelGround, crumbleHits };
+  return { touching, wheelGround, crumbleHits, wheelContact };
 }
 
 function startSuddenDeath() {
@@ -1339,7 +1372,9 @@ Events.on(engine, 'beforeUpdate', () => {
       drunk.flipped = !drunk.flipped; drunk.next = clock + rand(2500, 5000); shake = Math.max(shake, 9); sfx.bump(W / 2);
     }
     if (roundMod.id === 'rocket') for (const id in cars) cars[id].boostUntil = 1e15;
+    sillyRounds();
   }
+  if (state === 'playing' && rooAt) stepRoo();
   if (bird && state === 'playing') stepBird(STEP / 1000);
   for (const p of L.props) {                                          // loose balls and rocks: tidy up any that have gone far away or grown old
     if (!p.gone && (p.body.position.y > H + 300 || p.body.position.x < -300 || p.body.position.x > W + 300 || (p.life && clock - p.born > p.life))) { p.gone = true; Composite.remove(engine.world, p.body); }
@@ -1368,11 +1403,12 @@ Events.on(engine, 'beforeUpdate', () => {
       const A = Constraint.pointAWorld(c.trailer.hitch), B2 = Constraint.pointBWorld(c.trailer.hitch);
       if (Math.hypot(A.x - B2.x, A.y - B2.y) > 22) breakTrailer(c);
     }
-    if (c.body2) {                                                      // the three-wheeler's joint: a spring that keeps it nearly straight, much stiffer past the limit
-      let rel = c.body2.angle - c.body.angle; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
+    if (c.segs) for (let i = 0; i < c.segs.length - 1; i++) {           // the three-wheeler's joints: a spring at each that keeps it nearly straight, much stiffer past the limit
+      const s1 = c.segs[i], s2 = c.segs[i + 1];
+      let rel = s2.angle - s1.angle; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
       const over = Math.max(0, Math.abs(rel) - BEND.max) * Math.sign(rel);
-      const tq = -(BEND.k * rel + BEND.limitK * over + BEND.damp * (c.body2.angularVelocity - c.body.angularVelocity));
-      c.body2.torque += tq; c.body.torque -= tq;
+      const tq = -(BEND.k * rel + BEND.limitK * over + BEND.damp * (s2.angularVelocity - s1.angularVelocity));
+      s2.torque += tq; s1.torque -= tq;
     }
     const dir = aiIds.has(id) ? (state === 'playing' ? c.aiDir || 0 : 0) : ((keys.has(c.def.cw) ? 1 : 0) - (keys.has(c.def.acw) ? 1 : 0)) * (controlsFlipped() ? -1 : 1);   // the computer presses no keys: it just chooses a direction
     if (dir !== (c.lastDir || 0)) c.throttle = 0;                       // new key press (or direction change): start from zero
@@ -1407,6 +1443,15 @@ Events.on(engine, 'beforeUpdate', () => {
     } else {
       for (const w of c.wheels) Body.setAngularVelocity(w, w.angularVelocity * (1 - TUNE.brake));   // idle rolling resistance (0 = free-rolling)
     }
+    if (c.glue && state === 'playing') {                                // glue tyres: a wheel touching anything is pulled hard into it, so the car clings to walls and ceilings
+      for (const w of c.wheels) {
+        const cp = touchInfo.wheelContact.get(w);
+        if (!cp) continue;
+        const dx = cp.x - w.position.x, dy = cp.y - w.position.y, d = Math.hypot(dx, dy) || 1, f = engine.gravity.scale * GLUE.pull;
+        Body.applyForce(w, w.position, { x: w.mass * f * dx / d, y: w.mass * f * dy / d });
+        Body.applyForce(c.body, c.body.position, { x: c.body.mass * f * dx / d * 0.5, y: c.body.mass * f * dy / d * 0.5 });
+      }
+    }
     // sticky mud: any wheel on mud drags the whole car back
     if (c.wheels.some(w => (touchInfo.wheelGround.get(w) || {}).surface === 'mud')) {
       for (const b of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(b); Body.setVelocity(b, { x: v.x * 0.985, y: v.y * 0.985 }); }
@@ -1440,12 +1485,72 @@ function stepFlier(c, dir, airborne) {
   }
 }
 
+/* ---------- silly rounds, popups and the kangaroo ---------- */
+function popup(x, y, text, color = '#fff', life = 1100, size = 30) { popups.push({ x, y, text, color, born: clock, life, size }); }
+function shove(c, vx, vy, spin = 0) {                               // a sudden push on every part of a car
+  for (const bd of [...c.bodies, ...c.wheels]) { const v = Body.getVelocity(bd); Body.setVelocity(bd, { x: v.x + vx, y: v.y + vy }); }
+  if (spin) Body.setAngularVelocity(c.body, c.body.angularVelocity + spin);
+}
+function sillyRounds() {
+  const id = roundMod.id;
+  if (roundMod.rain && clock >= meteorNext) {                          // emoji rain: chickens, pianos, cows, ducks and watermelons fall out of the sky
+    const R = roundMod.rain;
+    meteorNext = clock + rand(R.every[0], R.every[1]);
+    if (L.props.filter(p => !p.gone).length < R.max) { const p = addBall(rand(60, W - 60), -50, rand(R.r[0], R.r[1]), 'emoji', { life: 9000, density: R.density, rest: R.rest, emoji: R.emoji }); Body.setVelocity(p.body, { x: rand(-1.5, 1.5), y: 3 }); Body.setAngularVelocity(p.body, rand(-0.06, 0.06)); }
+  }
+  if (!fun) fun = { next: {}, achoo: clock + rand(2500, 4500), blow: 0 };
+  for (const cid in cars) {
+    const c = cars[cid];
+    if (fun.next[cid] === undefined) fun.next[cid] = clock + rand(1200, 2500);
+    if (clock < fun.next[cid]) continue;
+    const p = centreOf(c);
+    if (id === 'disco') { fun.next[cid] = clock + rand(1100, 1700); shove(c, 0, -5.5, rand(-0.12, 0.12)); popup(p.x, p.y - 60, pick(['\u266A', '\u266B', 'BOOGIE!', 'GROOVY!']), '#ffe066'); sfx.chime('shield', p.x); }
+    else if (id === 'hiccups') { fun.next[cid] = clock + rand(1800, 3800); shove(c, rand(-1, 1), -6.5, rand(-0.05, 0.05)); popup(p.x, p.y - 60, 'HIC!', '#9be7ff'); sfx.bump(p.x); }
+    else if (id === 'toot') {
+      fun.next[cid] = clock + rand(900, 2000);
+      const a = c.body.angle, fx = Math.cos(a) * c.facing, fy = Math.sin(a) * c.facing;
+      shove(c, fx * 4.5, fy * 4.5 - 1);
+      popup(p.x - fx * 60, p.y - fy * 60 - 10, pick(['PARP!', 'TOOT!', 'PFFT!', 'BRAAAP!']), '#c8e86a', 900, 26);
+      spawnDust(p.x - fx * 64, p.y - fy * 64, 10, 'toot', { speed: [30, 120], size: [5, 11] }); sfx.pop(p.x);
+    } else fun.next[cid] = clock + 1e9;
+  }
+  if (id === 'seasick') engine.gravity.x = Math.sin(clock / 1100) * 0.55;
+  if (id === 'achoo') {
+    if (!fun.blow && clock >= fun.achoo) { fun.blow = clock + 1000; popup(W / 2, 140, 'A... A... A...', '#fff', 1000, 44); }
+    if (fun.blow && clock >= fun.blow) {                               // the sneeze: everything is blown sideways
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      for (const cid in cars) shove(cars[cid], dir * 7, -3, dir * 0.05);
+      for (const q of L.props) if (!q.gone) Body.setVelocity(q.body, { x: q.body.velocity.x + dir * 9, y: q.body.velocity.y - 3 });
+      popup(W / 2, 150, 'ACHOO!!', '#ffd23f', 1300, 72); shake = Math.max(shake, 18); sfx.crash(W / 2);
+      fun.blow = 0; fun.achoo = clock + rand(3500, 6000);
+    }
+  }
+}
+function stepRoo() {                                                 // now and then a kangaroo bounds across the arena, just for fun
+  if (rooAt === 1) rooAt = clock + rand(3000, 14000);
+  if (!roo && clock >= rooAt) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    roo = addBall(L.ringFn ? CX + rand(-150, 150) : rand(250, W - 250), L.ringFn ? 130 : -50, 34, 'emoji', { life: 14000, density: 0.0025, rest: 0.1, emoji: '\u{1F998}' });
+    Body.setInertia(roo.body, Infinity); roo.dir = dir; roo.hop = clock;
+    popup(W / 2, 120, "G'DAY, MATES!", '#ffb347', 1600, 40);
+  }
+  if (!roo) return;
+  if (roo.gone) { rooAt = 0; roo = null; return; }
+  const b = roo.body;
+  if (clock >= roo.hop && Math.abs(b.velocity.y) < 2 && b.position.y > 60) {      // on the ground (or a car): boing
+    roo.hop = clock + rand(650, 1100);
+    if (b.position.x < 80) roo.dir = 1; else if (b.position.x > W - 80) roo.dir = -1; else if (Math.random() < 0.25) roo.dir = -roo.dir;
+    Body.setVelocity(b, { x: roo.dir * rand(3, 5.5), y: -rand(11, 15) });
+    sfx.bump(b.position.x);
+  }
+}
+
 function checkRules() {
   if (state !== 'playing') return;
   for (const id in cars) {
     const c = cars[id], p = centreOf(c);
     if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) lose(id, 'out');
-    if (c.head.position.y + c.headR > waterY) lose(id, 'water');
+    if (c.head.position.y + c.headR > waterY) lose(id, lava ? 'lava' : 'water');
   }
   resolveRound();
 }
@@ -1532,6 +1637,7 @@ function emitFlames(c) {                       // boost: a jet of flame out of t
   }
 }
 function emitWeather() {
+  if (lava && Math.random() < 0.25) { const life = rand(0.8, 1.6); particles.push({ type: 'spark', x: rand(0, W), y: waterY, vx: rand(-30, 30), vy: -rand(80, 220), life, max: life, color: pick(['#ffd23f', '#ff9f1c', '#ff6b1c']) }); }
   if (wind) for (let i = 0; i < 3; i++) {
     const life = rand(0.5, 1.1);
     particles.push({ type: 'gust', x: rand(-50, W + 50), y: rand(40, WATER_Y), vx: wind.dir * rand(650, 950), vy: 0, len: rand(50, 110), life, max: life });
@@ -1848,7 +1954,12 @@ function drawTerrain() {
       if (it.gone) continue;
       const b = it.body, r = it.r;
       ctx.save(); ctx.translate(b.position.x, b.position.y); ctx.rotate(b.angle);
-      if (it.kind === 'rock') {
+      if (it.emoji) {
+        if (it === roo) ctx.rotate(-b.angle);
+        ctx.font = Math.round(r * 2.1) + 'px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (it === roo && b.velocity.x > 0) ctx.scale(-1, 1);
+        ctx.fillText(it.emoji, 0, r * 0.08);
+      } else if (it.kind === 'rock') {
         const v = Math.hypot(b.velocity.x, b.velocity.y);
         if (v > 5) { const g = ctx.createRadialGradient(0, 0, r * 0.5, 0, 0, r * 2.2); g.addColorStop(0, 'rgba(255,150,40,0.7)'); g.addColorStop(1, 'rgba(255,80,0,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r * 2.2, 0, 7); ctx.fill(); }
         ctx.fillStyle = '#6e6259'; ctx.strokeStyle = '#2b241f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
@@ -1927,6 +2038,12 @@ function drawWheel(w, r, square) {
       const a = i * Math.PI * 2 / 5;
       ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); ctx.stroke();
     }
+  }
+  if (w.glue) {                                                 // glue tyres: a gloopy lime coat with a few drips
+    ctx.strokeStyle = '#7CFC00'; ctx.lineWidth = Math.max(3, r * 0.14);
+    if (square) ctx.strokeRect(-r, -r, 2 * r, 2 * r); else { ctx.beginPath(); ctx.arc(0, 0, r - ctx.lineWidth / 2, 0, 7); ctx.stroke(); }
+    ctx.fillStyle = '#7CFC00';
+    for (const a of [0.7, 2.6, 4.4]) { ctx.beginPath(); ctx.arc(Math.cos(a) * r, Math.sin(a) * r, r * 0.14, 0, 7); ctx.fill(); }
   }
   ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, 7); ctx.fill();
   ctx.restore();
@@ -2048,43 +2165,65 @@ function drawCar(c) {
   drawShield(c);
   ctx.restore();
 }
-// The three-wheeler: each half is drawn on its own body so the car visibly bends at the joint.
+// The three-wheeler: each of the four segments is drawn on its own body so the car visibly snakes at the joints.
 function drawCar3(c) {
-  const { body, body2, def } = c;
+  const { segs, offs, def } = c, fx = c.flipX;
   for (const w of c.wheels) drawWheel(w, c.wheelR, false);
-  ctx.save();                                                    // the passenger rides over the joint, on the rear half
-  ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.translate(c.off.x, c.off.y); ctx.scale(c.flipX, 1);
-  drawHead(c);
-  ctx.restore();
-  for (const [half, off, side] of [[body, c.off, -1], [body2, c.off2, 1]]) {
-    ctx.save();
-    ctx.translate(half.position.x, half.position.y); ctx.rotate(half.angle); ctx.translate(off.x, off.y);
-    ctx.scale(side, 1);                                          // draw outwards from the joint: x is the distance from it
-    const nose = side * c.flipX > 0;                             // whichever half is at the front is the nose
-    ctx.fillStyle = def.color; ctx.beginPath();
-    ctx.moveTo(-3, 10); ctx.lineTo(100, 10); ctx.lineTo(100, nose ? -7 : -6); ctx.lineTo(nose ? 88 : 94, -16); ctx.lineTo(40, -16); ctx.lineTo(34, -11); ctx.lineTo(-3, -11); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = def.dark; ctx.fillRect(-3, -11, 31, 4);                  // cockpit interior
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 1, 96, 3);                       // racing stripe
-    if (nose) {
-      ctx.fillStyle = '#ffe066'; ctx.fillRect(94, -4, 6, 6);                 // headlight
-      ctx.save(); ctx.translate(30, -17); ctx.rotate(-0.4); ctx.fillStyle = 'rgba(190,230,255,0.8)'; ctx.fillRect(-2, -8, 4, 16); ctx.restore();   // windshield
-    } else { ctx.fillStyle = '#444'; ctx.fillRect(96, 4, 4, 4); }            // exhaust
-    ctx.restore();
-  }
-  ctx.save();                                                    // the joint cover hides the wedge where the halves meet
-  ctx.translate(body.position.x, body.position.y); ctx.rotate(body.angle); ctx.translate(c.off.x, c.off.y);
-  ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 7); ctx.fill();
-  ctx.fillStyle = '#8a8a8a'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 7); ctx.fill();
-  drawShield(c);
-  ctx.restore();
+  const inSeg = (i, fn) => { ctx.save(); ctx.translate(segs[i].position.x, segs[i].position.y); ctx.rotate(segs[i].angle); ctx.translate(offs[i].x, offs[i].y); fn(); ctx.restore(); };   // draw in the car's design coordinates, as carried by segment i
+  inSeg(1, () => { ctx.scale(fx, 1); drawHead(c); });            // the passenger rides over the middle joint
+  const roofY = (x, nose) => { x = Math.abs(x); const xs = [0, 34, 40, nose ? 88 : 94, 100], ys = [-11, -11, -16, -16, nose ? -7 : -6]; for (let i = 1; i < xs.length; i++) if (x <= xs[i]) return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1]); return ys[4]; };
+  const bounds = [[-100, -50], [-50, 0], [0, 50], [50, 100]];
+  segs.forEach((s, i) => inSeg(i, () => {
+    const lo = bounds[i][0] - (i ? 3 : 0), hi = bounds[i][1] + (i < 3 ? 3 : 0);          // overlap the neighbours a little so a bend leaves no gap
+    const xs = [lo, ...[-94, -88, -40, -34, 0, 34, 40, 88, 94].filter(x => x > lo && x < hi), hi];
+    ctx.fillStyle = def.color; ctx.beginPath(); ctx.moveTo(lo, 10);
+    for (const x of xs) ctx.lineTo(x, roofY(x, x * fx > 0));
+    ctx.lineTo(hi, 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = def.dark; ctx.fillRect(Math.max(lo, -28), -11, Math.min(hi, 28) - Math.max(lo, -28), 4);   // cockpit interior (where it overlaps this segment)
+    ctx.fillStyle = '#fff'; ctx.fillRect(lo, 1, hi - lo, 3);                                              // racing stripe
+  }));
+  inSeg(fx > 0 ? 3 : 0, () => { ctx.fillStyle = '#ffe066'; ctx.fillRect(fx > 0 ? 94 : -100, -4, 6, 6); });                    // headlight on the nose
+  inSeg(fx > 0 ? 0 : 3, () => { ctx.fillStyle = '#444'; ctx.fillRect(fx > 0 ? -100 : 96, 4, 4, 4); });                         // exhaust at the tail
+  inSeg(fx > 0 ? 2 : 1, () => { ctx.translate(30 * fx, -17); ctx.rotate(-0.4 * fx); ctx.fillStyle = 'rgba(190,230,255,0.8)'; ctx.fillRect(-2, -8, 4, 16); });   // windshield
+  for (const jx of [-50, 0, 50]) inSeg(jx < 0 ? 0 : jx === 0 ? 1 : 2, () => { ctx.fillStyle = '#2b2b2b'; ctx.beginPath(); ctx.arc(jx, 0, 10, 0, 7); ctx.fill(); ctx.fillStyle = '#8a8a8a'; ctx.beginPath(); ctx.arc(jx, 0, 3.5, 0, 7); ctx.fill(); });   // joint covers
+  inSeg(1, () => drawShield(c));
 }
 function drawWater(now, y) {
+  if (lava) return drawLava(now, y);
   ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, y);
   for (let x = 0; x <= W; x += 10) ctx.lineTo(x, y + Math.sin(x * 0.03 + now / 400) * 3);
   ctx.lineTo(W, H); ctx.closePath();
   const g = ctx.createLinearGradient(0, y, 0, H);
   g.addColorStop(0, 'rgba(30,120,220,0.85)'); g.addColorStop(1, 'rgba(10,50,140,0.95)');
   ctx.fillStyle = g; ctx.fill();
+}
+function drawLava(now, y) {                                          // boiling lava: a glowing, lumpy surface with bubbles that swell and pop
+  const glow = ctx.createLinearGradient(0, y - 70, 0, y);
+  glow.addColorStop(0, 'rgba(255,120,20,0)'); glow.addColorStop(1, 'rgba(255,120,20,0.35)');
+  ctx.fillStyle = glow; ctx.fillRect(0, y - 70, W, 70);
+  ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, y);
+  for (let x = 0; x <= W; x += 10) ctx.lineTo(x, y + Math.sin(x * 0.045 + now / 500) * 4 + Math.sin(x * 0.11 - now / 230) * 2);
+  ctx.lineTo(W, H); ctx.closePath();
+  const g = ctx.createLinearGradient(0, y, 0, H);
+  g.addColorStop(0, '#ffd23f'); g.addColorStop(0.25, '#ff7a1a'); g.addColorStop(1, '#a31510');
+  ctx.fillStyle = g; ctx.fill();
+  for (let i = 0; i < 14; i++) {                                     // bubbles
+    const ph = ((now / 1300 + i * 0.37) % 1), bx = (i * 97 + Math.floor(now / 1300 + i * 0.37) * 211) % W, r = 3 + ph * 11;
+    if (ph > 0.85) continue;
+    ctx.strokeStyle = 'rgba(255,230,120,0.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(bx, y + 14 + (1 - ph) * 12, r, 0, 7); ctx.stroke();
+  }
+}
+function drawPopups() {
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
+  popups = popups.filter(p => clock - p.born < p.life);
+  for (const p of popups) {
+    const k = (clock - p.born) / p.life;
+    ctx.globalAlpha = Math.min(1, (1 - k) * 2.5);
+    ctx.font = '800 ' + p.size + 'px "Segoe UI", Arial, sans-serif';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(p.text, p.x, p.y - k * 40);
+    ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y - k * 40);
+  }
+  ctx.restore();
 }
 function outlinedText(text, y, font, fill, outline = 10) {
   ctx.font = font; ctx.lineWidth = outline; ctx.strokeStyle = 'rgba(0,0,0,0.55)';
@@ -2098,7 +2237,7 @@ function drawBanner(now) {
   if (state === 'playing') {
     if (sd && now < sd.bannerUntil) {
       outlinedText('SUDDEN DEATH!', 150, '800 72px "Segoe UI", Arial, sans-serif', '#ff4d4d');
-      outlinedText(sd.kind === 'water' ? 'The water is rising!' : 'The walls are closing in!', 195, '600 28px "Segoe UI", Arial, sans-serif', '#fff', 6);
+      outlinedText(sd.kind === 'water' ? (lava ? 'The lava is rising!' : 'The water is rising!') : 'The walls are closing in!', 195, '600 28px "Segoe UI", Arial, sans-serif', '#fff', 6);
     }
     ctx.restore();
     return;
@@ -2150,7 +2289,9 @@ function draw(now) {
   ctx.restore();
   if (sd && sd.kind === 'walls') drawSdWalls(sd.inset);
   drawParticles();
+  drawPopups();
   ctx.restore();
+  if (roundMod && roundMod.id === 'disco' && state !== 'ready') { ctx.fillStyle = 'hsla(' + ((now / 6) % 360).toFixed(0) + ',100%,55%,0.17)'; ctx.fillRect(0, 0, W, H); }   // flashing disco lights
   if (roundMod && roundMod.id === 'storm') { ctx.fillStyle = 'rgba(15,25,55,0.28)'; ctx.fillRect(0, 0, W, H); }   // dark storm sky
   if (roundMod && state !== 'ready' && controlsFlipped()) {            // mirror madness and dizzy drivers: a purple tint while the controls are swapped
     ctx.fillStyle = 'rgba(190,70,255,0.16)'; ctx.fillRect(0, 0, W, H);
@@ -2306,6 +2447,71 @@ volSlider.addEventListener('input', e => { sfx.ensure(); sfx.setVolume(parseFloa
 addEventListener('keydown', e => { sfx.ensure(); if (e.code === 'KeyU' && !e.repeat && e.target.tagName !== 'INPUT') toggleMute(); });   // any key press unlocks audio; U mutes
 addEventListener('pointerdown', () => sfx.ensure());
 syncSoundUi();
+
+/* ---------- title page fun: the logo slowly falls to pieces (each letter and each car drops, bounces off the play buttons and the floor, and settles), lies there a while, then springs back together ---------- */
+(function titleFun() {
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const logo = document.getElementById('logo'), menuEl = document.getElementById('menu'), btns = document.getElementById('menuBtns');
+  for (const el of logo.querySelectorAll('.l1, .l2')) {                     // one inline-block span per letter so each can move on its own
+    const text = el.textContent; el.textContent = '';
+    for (const ch of text) { const s = document.createElement('span'); s.className = 'tp'; s.textContent = ch === ' ' ? ' ' : ch; el.appendChild(s); }
+  }
+  const cars = [...logo.querySelectorAll('.logoCar')]; for (const c of cars) c.style.display = 'block';
+  // every piece is a circle in the physics: x, y, r are its offset from home (and spin), cx0, cy0 its home centre, rad its size
+  const pieces = [...logo.querySelectorAll('.tp'), ...cars, document.getElementById('ver')].map(el => ({ el, x: 0, y: 0, r: 0, vx: 0, vy: 0, vr: 0, cx0: 0, cy0: 0, rad: 10, state: 'home', at: 0, fromX: 0, fromY: 0, fromR: 0 }));
+  let phase = 'whole', phaseAt = performance.now(), last = phaseAt, order = [];
+  const set = p => { p.el.style.transform = p.state === 'home' ? '' : 'translate(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px) rotate(' + p.r.toFixed(3) + 'rad)'; };
+  function collide(p, rects) {                                              // circle against the screen edges and the play buttons
+    const cx = p.cx0 + p.x, cy = p.cy0 + p.y, rad = p.rad;
+    const push = (nx, ny, depth) => {
+      p.x += nx * depth; p.y += ny * depth;
+      const vn = p.vx * nx + p.vy * ny;
+      if (vn < 0) { const e = vn < -80 ? 0.45 : 0; p.vx -= (1 + e) * vn * nx; p.vy -= (1 + e) * vn * ny; const tx = -ny, ty = nx, vt = p.vx * tx + p.vy * ty; p.vx -= vt * 0.08 * tx; p.vy -= vt * 0.08 * ty; p.vr *= 0.8; }
+    };
+    if (cy + rad > innerHeight - 6) push(0, -1, cy + rad - (innerHeight - 6));
+    if (cx - rad < 4) push(1, 0, 4 - (cx - rad));
+    if (cx + rad > innerWidth - 4) push(-1, 0, cx + rad - (innerWidth - 4));
+    for (const b of rects) {
+      const qx = Math.max(b.left, Math.min(cx, b.right)), qy = Math.max(b.top, Math.min(cy, b.bottom));
+      let dx = cx - qx, dy = cy - qy, d = Math.hypot(dx, dy);
+      if (d >= rad) continue;
+      if (d < 0.001) { dx = 0; dy = -1; d = 0; push(0, -1, rad + (cy - b.top)); continue; }   // centre inside the button: lift straight out of the top
+      push(dx / d, dy / d, rad - d);
+    }
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.max(0, Math.min(0.033, (now - last) / 1000)); last = Math.max(last, now);
+    if (menuEl.classList.contains('hidden')) { phase = 'whole'; phaseAt = now; for (const p of pieces) { p.state = 'home'; set(p); } return; }
+    if (phase === 'whole' && now - phaseAt > 5000) {                          // start falling apart: release the pieces one by one in a random order
+      phase = 'falling'; phaseAt = now; order = pieces.map((p, i) => i).sort(() => Math.random() - 0.5);
+      for (const p of pieces) { const b = p.el.getBoundingClientRect(); p.cx0 = b.left + b.width / 2; p.cy0 = b.top + b.height / 2; p.rad = Math.max(8, Math.min(b.width, b.height) * (p.el.tagName === 'svg' ? 0.5 : 0.45)); }
+    }
+    if (phase === 'falling') {
+      const n = Math.min(order.length, Math.floor((now - phaseAt) / 220));
+      for (let i = 0; i < n; i++) { const p = pieces[order[i]]; if (p.state === 'home') { p.state = 'fall'; p.vx = rand(-90, 90); p.vy = rand(-120, 0); p.vr = rand(-2.5, 2.5); } }
+      if (n === order.length && now - phaseAt > order.length * 220 + 3000) { phase = 'lying'; phaseAt = now; }
+    }
+    if (phase === 'lying' && now - phaseAt > 1500) { phase = 'returning'; phaseAt = now; for (const p of pieces) { p.state = 'back'; p.at = now; p.fromX = p.x; p.fromY = p.y; p.fromR = p.r; } }
+    const rects = [...btns.querySelectorAll('button')].map(b => b.getBoundingClientRect());
+    for (const p of pieces) {
+      if (p.state === 'fall') {
+        p.vy += 1700 * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += p.vr * dt;
+        collide(p, rects);
+        if (Math.abs(p.vy) < 20 && Math.abs(p.vx) > 2) p.vx *= 0.97;
+        set(p);
+      } else if (p.state === 'back') {                                       // spring home: ease out with a little overshoot, and untwist
+        const k = Math.min(1, (now - p.at) / 1100), e = 1 - Math.pow(1 - k, 3) + Math.sin(k * Math.PI) * 0.06;
+        p.x = p.fromX * (1 - e); p.y = p.fromY * (1 - e); p.r = p.fromR * (1 - e);
+        if (k >= 1) { p.state = 'home'; p.x = p.y = p.r = 0; }
+        set(p);
+      }
+    }
+    if (phase === 'returning' && pieces.every(p => p.state === 'home')) { phase = 'whole'; phaseAt = now; }
+  }
+  requestAnimationFrame(frame);
+  window.__titleFrame = frame;                                              // (for testing: step the animation by hand)
+})();
 const nextSel = document.getElementById('nextLevel');
 for (const l of LEVELS) nextSel.add(new Option(l.name, l.id));
 nextSel.addEventListener('change', () => { forceLevelId = nextSel.value || null; nextSel.blur(); });
